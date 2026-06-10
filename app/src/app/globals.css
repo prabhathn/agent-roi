@@ -1,0 +1,76 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --background: #f9f5ef;
+  --foreground: #2d2b28;
+  --surface: #ffffff;
+  --surface-secondary: #f3ede4;
+  --border: #e8e0d4;
+  --border-strong: #d4c9b8;
+  --text-muted: #8b7e6e;
+  --text-secondary: #5c554a;
+  --accent: #d97706;
+  --accent-subtle: #fef3c7;
+  --user-bubble: #e8dfd3;
+  --assistant-bg: transparent;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Markdown table styling */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin: 0.75rem 0;
+}
+.prose thead {
+  border-bottom: 2px solid var(--border-strong);
+}
+.prose th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+.prose td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+.prose tbody tr:hover {
+  background: var(--surface-secondary);
+}
+.prose code {
+  font-size: 0.8125rem;
+}

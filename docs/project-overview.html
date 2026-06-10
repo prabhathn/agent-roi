@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent ROI Demo - Project Overview</title>
+    <style>
+        :root {
+            --bg: #faf9f7;
+            --surface: #ffffff;
+            --text: #1a1a1a;
+            --text-muted: #6b6b6b;
+            --accent: #2563eb;
+            --accent-light: #eff6ff;
+            --border: #e5e5e5;
+            --purple: #7c3aed;
+            --blue: #2563eb;
+            --green: #059669;
+            --amber: #d97706;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+        /* Hero */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 20px 4px 0;
+        }
+        .badge-purple { background: #f3e8ff; color: var(--purple); }
+        .badge-blue { background: #eff6ff; color: var(--blue); }
+        .badge-green { background: #ecfdf5; color: var(--green); }
+
+        /* Sections */
+        section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+        section h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        section h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 32px 0 8px;
+        }
+        section p {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+        }
+        .card h4 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+        .card p { font-size: 0.9rem; margin: 0; }
+
+        /* Agent table */
+        .agent-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 0.9rem;
+        }
+        .agent-table th, .agent-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .agent-table th {
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+        .agent-table tr:hover { background: var(--accent-light); }
+        .type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .type-cortex { background: #f3e8ff; color: var(--purple); }
+        .type-rest { background: #eff6ff; color: var(--blue); }
+        .type-external { background: #ecfdf5; color: var(--green); }
+
+        /* Architecture */
+        .arch-diagram {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 24px 0;
+            text-align: center;
+            overflow-x: auto;
+        }
+        .arch-diagram pre {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            text-align: left;
+            display: inline-block;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            white-space: pre;
+        }
+        .code-block .comment { color: #6c7086; }
+        .code-block .keyword { color: #cba6f7; }
+        .code-block .string { color: #a6e3a1; }
+        .code-block .func { color: #89b4fa; }
+
+        /* Flow steps */
+        .flow-steps {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 24px 0;
+        }
+        .flow-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+
+        /* Metrics */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 24px 0;
+        }
+        .metric {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+        .metric-value { font-size: 1.5rem; font-weight: 700; }
+        .metric-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 2rem; }
+            .metrics-row { grid-template-columns: repeat(2, 1fr); }
+            .card-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="container">
+    <div class="hero">
+        <h1>Agent ROI Demo</h1>
+        <p>Measure the real-world value of AI agents by combining telemetry, user feedback, and cost data into a single ROI score.</p>
+        <span class="badge badge-purple">Cortex Agents</span>
+        <span class="badge badge-blue">Cortex REST API</span>
+        <span class="badge badge-green">External Agents</span>
+    </div>
+</div>
+
+<!-- What It Does -->
+<section>
+    <div class="container">
+        <h2>What does this demo show?</h2>
+        <p>This project demonstrates how to measure whether AI agents are actually delivering value. It connects multiple types of agents to a unified monitoring system that tracks three things:</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <div class="card-icon" style="background: #fef3c7;">&#9201;</div>
+                <h4>Performance</h4>
+                <p>How long does each step take? Where are the bottlenecks? See every tool call, retrieval, and generation step in a waterfall chart.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon" style="background: #dbeafe;">&#128172;</div>
+                <h4>User Feedback</h4>
+                <p>Thumbs up/down, star ratings, and task completion tracking. Users tell you if the agent actually helped them.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon" style="background: #dcfce7;">&#128176;</div>
+                <h4>Cost</h4>
+                <p>Credits consumed per conversation, per tool, per day. Know exactly what you're spending and whether it's worth it.</p>
+            </div>
+        </div>
+
+        <h3>The ROI Formula (Customizable)</h3>
+        <p>The demo ships with a default formula, but this is designed to be customized for your organization:</p>
+        <div class="code-block">
+<span class="comment">// Default: Quality x Reliability / Cost</span>
+ROI Score = (Positive Feedback Rate x (1 - Error Rate)) / Credits Per Conversation
+        </div>
+        <p>But real organizations want to quantify value in <strong>dollars</strong>. Here are three approaches you can plug in:</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <h4>Option A: Time Saved</h4>
+                <p>Track user role and FTE salary. When a task is completed, multiply time saved by the user's hourly rate.</p>
+                <div class="code-block" style="font-size: 0.75rem; padding: 12px 16px;">
+<span class="comment">// User: Senior Analyst, $85/hr</span>
+<span class="comment">// Task: "Generate quarterly report"</span>
+<span class="comment">// Time saved: 30 min</span>
+Value = $85/hr x 0.5hr = <span class="string">$42.50</span>
+Cost  = 0.003 credits x $3/credit = <span class="string">$0.009</span>
+ROI   = $42.50 / $0.009 = <span class="string">4,722x</span>
+                </div>
+            </div>
+            <div class="card">
+                <h4>Option B: Action Value</h4>
+                <p>Assign dollar values to actions the agent enables (e.g., resolving a support ticket, closing a deal, approving an order).</p>
+                <div class="code-block" style="font-size: 0.75rem; padding: 12px 16px;">
+<span class="comment">// Rate table:</span>
+<span class="comment">// Support ticket resolved: $15</span>
+<span class="comment">// Data report generated: $25</span>
+<span class="comment">// Policy question answered: $5</span>
+Value = SUM(action_values)
+ROI   = Total Value / Total Cost
+                </div>
+            </div>
+            <div class="card">
+                <h4>Option C: Deflection Rate</h4>
+                <p>If the agent handles a request that would have gone to a human, the value = the fully-loaded cost of that human interaction.</p>
+                <div class="code-block" style="font-size: 0.75rem; padding: 12px 16px;">
+<span class="comment">// Avg support interaction: $12</span>
+<span class="comment">// Agent handled: 847 conversations</span>
+<span class="comment">// Positive resolution: 78%</span>
+Value = 847 x 0.78 x $12 = <span class="string">$7,928</span>
+Cost  = 847 x $0.009 = <span class="string">$7.62</span>
+ROI   = <span class="string">1,040x</span>
+                </div>
+            </div>
+        </div>
+        <p>The feedback system captures the signals needed for all three approaches: time saved (from task completion), action type (from categories), and resolution quality (from thumbs up/down).</p>
+    </div>
+</section>
+
+<!-- The Agents -->
+<section>
+    <div class="container">
+        <h2>Three production agents, three architectures</h2>
+        <p>The demo includes three user-facing agents built with different technologies to show that the monitoring system works regardless of how the agent is built.</p>
+
+        <table class="agent-table">
+            <thead>
+                <tr>
+                    <th>Agent</th>
+                    <th>Type</th>
+                    <th>What it does</th>
+                    <th>LLM</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Sales &amp; Policy Agent</strong></td>
+                    <td><span class="type-badge type-cortex">Cortex Agent</span></td>
+                    <td>Answers questions about orders, revenue, and company policies</td>
+                    <td>Snowflake-managed</td>
+                </tr>
+                <tr>
+                    <td><strong>Knowledge RAG Agent</strong></td>
+                    <td><span class="type-badge type-rest">Cortex REST API</span></td>
+                    <td>Retrieves from knowledge docs, generates answers via Cortex COMPLETE</td>
+                    <td>Cortex COMPLETE (llama3.1-8b)</td>
+                </tr>
+                <tr>
+                    <td><strong>Local Q&amp;A Agent</strong></td>
+                    <td><span class="type-badge type-external">External</span></td>
+                    <td>General Q&amp;A with multi-step reasoning (think/draft/refine)</td>
+                    <td>Local Qwen 2.5 0.5B</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Why three architectures?</h3>
+        <p><strong>Cortex Agents</strong> are fully managed by Snowflake. You get automatic telemetry, built-in tools (Cortex Analyst, Cortex Search), and zero infrastructure to manage. Best for production workloads.</p>
+        <p><strong>Cortex REST API Agents</strong> are custom Python applications that still use Snowflake for LLM inference (via CORTEX.COMPLETE). You get more control over the agent logic while keeping Snowflake as the AI backbone.</p>
+        <p><strong>External Agents</strong> run entirely outside Snowflake. The demo uses a local LLM (no cloud calls for inference). Telemetry is still sent to Snowflake for unified monitoring, but the agent itself is independent.</p>
+    </div>
+</section>
+
+<!-- Optimizing Agents -->
+<section>
+    <div class="container">
+        <h2>Optimizing and improving agents</h2>
+        <p>The fourth agent in the system is different from the other three. It doesn't serve end users -- it serves the team that builds and operates the other agents.</p>
+
+        <div class="card" style="border-left: 3px solid var(--amber); margin: 24px 0;">
+            <h4>Trace Analyst Agent</h4>
+            <p>A Cortex Agent connected to a semantic view over the materialized trace and feedback data. You can ask it natural-language questions like:</p>
+            <ul style="margin: 8px 0 0 16px; color: var(--text-muted); font-size: 0.9rem;">
+                <li>"What is the average latency for the Sales Agent's planning step?"</li>
+                <li>"Which tool has the highest error rate this week?"</li>
+                <li>"Show me conversations where users gave thumbs down after a replan"</li>
+                <li>"Compare response time between the Cortex Agent and the Knowledge RAG Agent"</li>
+            </ul>
+        </div>
+
+        <h3>How it works today</h3>
+        <p>The Trace Analyst is embedded in the Traces page as a sidebar chat. It queries materialized tables (<code>TRACE_SPANS_DT</code>, <code>TRACE_FEEDBACK_DT</code>) via Cortex Analyst to answer performance questions. This gives you a conversational interface over what would otherwise require writing complex SQL against observability tables.</p>
+
+        <h3>The improvement cycle</h3>
+        <p>The Trace Analyst enables a feedback loop where agent performance data drives agent improvements:</p>
+        <div class="flow-steps">
+            <div class="flow-step">Agents serve users</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Traces + feedback collected</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Trace Analyst identifies patterns</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Team makes improvements</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">ROI score improves</div>
+        </div>
+
+        <h3>Future vision: autonomous agent improvement</h3>
+        <p>Today, the Trace Analyst informs <em>humans</em> who then manually update agents. The next evolution is automating parts of this loop:</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <h4>Auto-suggest instruction changes</h4>
+                <p>When the Trace Analyst detects recurring negative feedback patterns (e.g., "Hallucination" on questions about shipping), it could automatically draft improved system instructions and present them for human approval.</p>
+                <p style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">Example: "I noticed 12 hallucination reports this week on shipping questions. Suggested instruction update: 'Always cite the specific policy document when answering shipping questions. If no document matches, say you don't have that information.'"</p>
+            </div>
+            <div class="card">
+                <h4>Auto-update agent instructions</h4>
+                <p>With appropriate guardrails, the system could apply instruction updates automatically. Use Snowflake's <code>ALTER AGENT</code> to update the agent's system prompt, then monitor whether the ROI score improves or degrades over the next N conversations.</p>
+                <p style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">Guardrail: Only apply changes that passed A/B testing in a shadow mode first. Auto-rollback if error rate increases by more than 5%.</p>
+            </div>
+            <div class="card">
+                <h4>Agent world model testing</h4>
+                <p>Before deploying instruction changes to real users, test them against a "world model" -- a synthetic dataset of historical questions and expected behaviors. Run the updated agent through 100+ representative queries and compare outputs against ground truth.</p>
+                <p style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">Implementation: Use Snowflake's AI Observability evaluation runs to score the candidate instructions against historical data before promoting to production.</p>
+            </div>
+            <div class="card">
+                <h4>Cross-agent learning</h4>
+                <p>If the Local Q&A Agent handles a question better than the Cortex Agent (based on feedback), the system could analyze what's different and suggest routing rules or instruction improvements for the weaker agent.</p>
+                <p style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">Example: "The Local Agent scored 4.2 stars on 'What is photosynthesis?' while the Sales Agent scored 2.1. Consider routing general knowledge questions away from the Sales Agent."</p>
+            </div>
+            <div class="card">
+                <h4>Automated tool selection tuning</h4>
+                <p>When trace data shows an agent frequently picks the wrong tool (e.g., using Cortex Search when Cortex Analyst would be better), the system could suggest tool-routing instructions or even adjust tool descriptions to improve selection accuracy.</p>
+                <p style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">Signal: Traces where tool selection is followed by a replan (the agent tried a tool, failed, and had to try another).</p>
+            </div>
+            <div class="card">
+                <h4>Cost optimization recommendations</h4>
+                <p>Identify conversations where a smaller/cheaper model would have produced an equivalent result. Suggest model downgrades for specific query types to reduce cost without impacting quality.</p>
+                <p style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">Example: "87% of policy questions are answerable by llama3.1-8b at $0.001/query vs the current model at $0.01/query. Switching would save $2,400/month with no quality impact."</p>
+            </div>
+        </div>
+
+        <h3>The maturity model</h3>
+        <table class="agent-table">
+            <thead>
+                <tr><th>Level</th><th>Description</th><th>Who improves agents?</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>1. Manual</strong></td>
+                    <td>Team reads dashboards, manually identifies issues, manually updates agents</td>
+                    <td>Humans only</td>
+                </tr>
+                <tr>
+                    <td><strong>2. Assisted</strong> (current demo)</td>
+                    <td>Trace Analyst surfaces insights conversationally, humans decide and act</td>
+                    <td>AI-assisted humans</td>
+                </tr>
+                <tr>
+                    <td><strong>3. Suggested</strong></td>
+                    <td>System auto-generates improvement proposals with evidence, humans approve</td>
+                    <td>AI proposes, humans approve</td>
+                </tr>
+                <tr>
+                    <td><strong>4. Autonomous</strong></td>
+                    <td>System tests, validates, and deploys improvements within guardrails. Humans set policy.</td>
+                    <td>AI executes, humans govern</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>This demo is at Level 2. Each subsequent level requires more trust in the system (built through track record) and more sophisticated guardrails (A/B testing, auto-rollback, evaluation benchmarks).</p>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section>
+    <div class="container">
+        <h2>How it works</h2>
+        <p>The system has four main pages, each serving a different audience:</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <h4>Chat</h4>
+                <p>Talk to any agent. Switch between them with a dropdown inside the message box. Leave feedback with thumbs up/down or track tasks.</p>
+            </div>
+            <div class="card">
+                <h4>Dashboard</h4>
+                <p>See ROI metrics at a glance: conversations, cost per request, positive feedback rate, error rate, and the combined ROI score.</p>
+            </div>
+            <div class="card">
+                <h4>Traces</h4>
+                <p>Inspect individual conversations step-by-step. A Gantt-chart waterfall shows exactly what happened and how long each step took.</p>
+            </div>
+            <div class="card">
+                <h4>Config</h4>
+                <p>Register new agents, configure endpoints, toggle agents on/off. Supports Cortex Agents, REST API agents, and external agents.</p>
+            </div>
+        </div>
+
+        <h3>The feedback model</h3>
+        <p>The underlying system is simple: <strong>you send a JSON object with any fields you want</strong>. The API accepts three things:</p>
+        <div class="code-block">
+{
+  <span class="string">"positive"</span>: true,          <span class="comment">// Was this helpful? (required)</span>
+  <span class="string">"categories"</span>: [...],       <span class="comment">// Tags you define (any strings)</span>
+  <span class="string">"feedback_message"</span>: "..."  <span class="comment">// Free-text comment (optional)</span>
+}
+        </div>
+        <p>The <code>categories</code> array is where all the magic happens. You can put anything in there. The UI interprets the categories to build different interfaces, and the backend processes them for ROI calculations.</p>
+
+        <h3>Example interfaces (all use the same API)</h3>
+        <div class="card-grid">
+            <div class="card">
+                <h4>Simple: Thumbs Up/Down</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 8px;">Minimal friction. Just "was this helpful?"</p>
+                <div style="background: var(--bg); border-radius: 8px; padding: 12px; font-size: 0.8rem;">
+                    <span style="font-size: 1.2rem; cursor: pointer;">&#128077;</span> &nbsp;
+                    <span style="font-size: 1.2rem; cursor: pointer;">&#128078;</span>
+                </div>
+                <div class="code-block" style="font-size: 0.7rem; padding: 8px 12px; margin-top: 8px;">
+{ "positive": true, "categories": [] }
+                </div>
+            </div>
+            <div class="card">
+                <h4>Star Rating + Comment</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 8px;">More granular quality signal.</p>
+                <div style="background: var(--bg); border-radius: 8px; padding: 12px; font-size: 0.8rem;">
+                    &#9733;&#9733;&#9733;&#9733;&#9734; <small style="color: var(--text-muted);">+ optional note</small>
+                </div>
+                <div class="code-block" style="font-size: 0.7rem; padding: 8px 12px; margin-top: 8px;">
+{ "positive": true,
+  "categories": ["stars:4"],
+  "feedback_message": "Good but slow" }
+                </div>
+            </div>
+            <div class="card">
+                <h4>Issue Categories</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 8px;">When something goes wrong, capture why.</p>
+                <div style="background: var(--bg); border-radius: 8px; padding: 12px; font-size: 0.75rem;">
+                    <span style="background:#fee2e2; padding:2px 6px; border-radius:4px; margin:2px;">Wrong answer</span>
+                    <span style="background:#fef3c7; padding:2px 6px; border-radius:4px; margin:2px;">Too slow</span>
+                    <span style="background:#e0e7ff; padding:2px 6px; border-radius:4px; margin:2px;">Hallucination</span>
+                </div>
+                <div class="code-block" style="font-size: 0.7rem; padding: 8px 12px; margin-top: 8px;">
+{ "positive": false,
+  "categories": ["Wrong answer", "Hallucination"] }
+                </div>
+            </div>
+            <div class="card">
+                <h4>Task Completion</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 8px;">Did the agent help finish real work?</p>
+                <div style="background: var(--bg); border-radius: 8px; padding: 12px; font-size: 0.75rem;">
+                    Value: <strong>High</strong> | Time saved: <strong>15-30 min</strong><br>
+                    Automated: <strong>Yes</strong>
+                </div>
+                <div class="code-block" style="font-size: 0.7rem; padding: 8px 12px; margin-top: 8px;">
+{ "positive": true,
+  "categories": ["task:complete", "value:High",
+    "time_saved:15-30 min", "automated:yes"],
+  "feedback_message": "Generated the full report" }
+                </div>
+            </div>
+            <div class="card">
+                <h4>Custom: Deal Outcome</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 8px;">Example: a sales team tracking deal impact.</p>
+                <div style="background: var(--bg); border-radius: 8px; padding: 12px; font-size: 0.75rem;">
+                    Deal stage: <strong>Closed Won</strong><br>
+                    ACV: <strong>$45,000</strong>
+                </div>
+                <div class="code-block" style="font-size: 0.7rem; padding: 8px 12px; margin-top: 8px;">
+{ "positive": true,
+  "categories": ["deal:closed_won", "acv:45000",
+    "stage_assisted:proposal"] }
+                </div>
+            </div>
+            <div class="card">
+                <h4>Custom: Code Review</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 8px;">Example: a dev team tracking code quality.</p>
+                <div style="background: var(--bg); border-radius: 8px; padding: 12px; font-size: 0.75rem;">
+                    Bugs found: <strong>3</strong><br>
+                    PR approved: <strong>Yes</strong>
+                </div>
+                <div class="code-block" style="font-size: 0.7rem; padding: 8px 12px; margin-top: 8px;">
+{ "positive": true,
+  "categories": ["bugs_found:3", "pr_approved:yes",
+    "language:python", "complexity:high"] }
+                </div>
+            </div>
+        </div>
+
+        <h3>How the backend processes categories</h3>
+        <p>Categories are just strings. The backend parses them with simple pattern matching:</p>
+        <div class="code-block">
+<span class="comment">// Categories follow a key:value convention</span>
+<span class="string">"stars:4"</span>       &rarr; stars = 4, used for quality scoring
+<span class="string">"value:High"</span>    &rarr; task value = High (weighted 3x in ROI calc)
+<span class="string">"time_saved:15-30 min"</span> &rarr; converted to dollars via user's hourly rate
+<span class="string">"automated:yes"</span> &rarr; automation rate metric (higher = more efficient)
+<span class="string">"deal:closed_won"</span>  &rarr; custom metric you define for your use case
+
+<span class="comment">// The system doesn't care what you put in categories.</span>
+<span class="comment">// Your dashboard/ROI formula reads whatever keys matter to you.</span>
+        </div>
+        <p>This means you can design <strong>any feedback interface</strong> for your use case, send it through the same API, and build custom ROI formulas that read your specific category keys. No backend changes needed to add new feedback types.</p>
+    </div>
+</section>
+
+<!-- Process: How to Build This -->
+<section>
+    <div class="container">
+        <h2>The process: building an Agent ROI program</h2>
+        <p>This isn't just a technology project. It's a measurement program that requires alignment between product, engineering, and finance. Here's the sequence that works:</p>
+
+        <h3>Phase 1: Define what "value" means</h3>
+        <p><strong>Before writing any code</strong>, answer these questions with your stakeholders:</p>
+        <div class="card-grid">
+            <div class="card">
+                <h4>What outcomes matter?</h4>
+                <p>Is the goal to save employee time? Reduce support ticket volume? Increase deal velocity? Improve data quality? Each outcome has different KPIs and different dollar values.</p>
+            </div>
+            <div class="card">
+                <h4>Who are the users?</h4>
+                <p>An agent that saves a $200/hr executive 10 minutes is worth more than one that saves a $50/hr analyst the same time. Map users to roles, roles to rates.</p>
+            </div>
+            <div class="card">
+                <h4>What does "good" look like?</h4>
+                <p>Define your target ROI threshold. 10x? 100x? 1000x? This determines whether you optimize for cost reduction, value increase, or both.</p>
+            </div>
+        </div>
+
+        <h3>Phase 2: Design the feedback system</h3>
+        <p>The feedback UI is your primary data collection mechanism. Design it for the signals your ROI formula needs:</p>
+        <table class="agent-table">
+            <thead>
+                <tr><th>If your ROI model needs...</th><th>Your feedback UI should capture...</th><th>Example categories</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Time savings</td><td>How long the task would have taken manually</td><td><code>time_saved:15-30 min</code></td></tr>
+                <tr><td>Quality assessment</td><td>Was the output correct and complete?</td><td><code>stars:4</code>, <code>Incomplete</code></td></tr>
+                <tr><td>Task completion</td><td>Did the user actually finish the work?</td><td><code>task:complete</code>, <code>automated:yes</code></td></tr>
+                <tr><td>Business value</td><td>What was the dollar impact?</td><td><code>value:High</code>, <code>deal:closed_won</code></td></tr>
+                <tr><td>Error classification</td><td>What went wrong and why?</td><td><code>Hallucination</code>, <code>Wrong tool used</code></td></tr>
+                <tr><td>User effort</td><td>How many turns to get the answer?</td><td><code>turns:3</code>, <code>needed_edit:yes</code></td></tr>
+            </tbody>
+        </table>
+        <p>Start simple (thumbs up/down), then layer in richer signals as you understand what drives value. You can always add new feedback types without changing the backend.</p>
+
+        <h3>Phase 3: Choose your agent strategy</h3>
+        <p>This is simultaneously a technology decision, a procurement decision, and an architecture decision. Consider:</p>
+        <div class="card-grid">
+            <div class="card" style="border-left: 3px solid var(--purple);">
+                <h4>Fully managed (Cortex Agent)</h4>
+                <p><strong>Choose when:</strong> You want production-ready agents fast. You trust Snowflake's LLM selection. You want automatic telemetry with zero instrumentation effort.</p>
+                <p><strong>Trade-off:</strong> Less control over model choice and reasoning logic. Costs scale with Snowflake credit pricing.</p>
+            </div>
+            <div class="card" style="border-left: 3px solid var(--blue);">
+                <h4>Hybrid (Cortex REST API)</h4>
+                <p><strong>Choose when:</strong> You want custom agent logic but still want Snowflake's LLMs. You need specific retrieval patterns or multi-step workflows that Cortex Agent's built-in tools don't support.</p>
+                <p><strong>Trade-off:</strong> More engineering effort. You manage the server, but inference costs stay on Snowflake.</p>
+            </div>
+            <div class="card" style="border-left: 3px solid var(--green);">
+                <h4>Fully external</h4>
+                <p><strong>Choose when:</strong> You have regulatory requirements for on-premise inference. You want to use a specific model (GPT-4, Claude, local LLM). You're building for a future where you might switch providers.</p>
+                <p><strong>Trade-off:</strong> You manage everything. Cost attribution is harder. But you maintain full flexibility.</p>
+            </div>
+        </div>
+        <p><strong>The flexibility question:</strong> Most organizations should plan for a blend. Start with Cortex Agents for speed-to-value, but build the monitoring infrastructure (like this demo) to be agent-agnostic. When a new model or provider becomes compelling, you can add it without rebuilding your ROI measurement system.</p>
+
+        <h3>Phase 4: Instrument and deploy</h3>
+        <p>Build the technical infrastructure:</p>
+        <ol style="margin: 12px 0 12px 24px; color: var(--text-muted);">
+            <li><strong>Agent registry</strong> -- A single source of truth for all agents (type, endpoint, observability config)</li>
+            <li><strong>Telemetry pipeline</strong> -- Ensure all agents emit spans to the same event table (automatic for Cortex, TruLens for external)</li>
+            <li><strong>Attribute normalization</strong> -- Map diverse span formats to a standard schema so dashboards work across agents</li>
+            <li><strong>Feedback collection</strong> -- Deploy the feedback UI designed in Phase 2, connected to the feedback API</li>
+            <li><strong>Cost attribution</strong> -- Connect credit usage, query history, and warehouse metering to agent activity</li>
+        </ol>
+
+        <h3>Phase 5: Measure, iterate, expand</h3>
+        <p>Once live, the cycle is:</p>
+        <div class="flow-steps">
+            <div class="flow-step">Collect traces + feedback</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Calculate ROI per agent</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Identify low-ROI agents</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Tune or replace</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Measure again</div>
+        </div>
+        <p>Key questions to ask each cycle:</p>
+        <ul style="margin: 12px 0 12px 24px; color: var(--text-muted);">
+            <li>Which agents have the highest ROI? Can we route more traffic to them?</li>
+            <li>Which agents have high error rates or negative feedback? What's failing?</li>
+            <li>Are users actually completing tasks, or just asking questions and leaving?</li>
+            <li>Is the cost per conversation trending up or down? Why?</li>
+            <li>Are there use cases where a cheaper agent (smaller model, local LLM) delivers equivalent value?</li>
+        </ul>
+    </div>
+</section>
+
+<!-- Technical Architecture -->
+<section>
+    <div class="container">
+        <h2>Technical architecture</h2>
+        <p>Here's how all the pieces connect:</p>
+
+        <div class="arch-diagram">
+<pre>
+  Browser (localhost:3000)
+  +------------------------------------------+
+  |  Next.js App                             |
+  |  - Chat page (SSE streaming)            |
+  |  - Dashboard (ROI metrics)              |
+  |  - Traces (Gantt waterfall)             |
+  |  - Config (agent registry)              |
+  +----+--------+--------+------------------+
+       |        |        |
+       v        v        v
+  +---------+ +------+ +--------+
+  | Cortex  | | :8000| | :8001  |
+  | Agent   | | RAG  | | Local  |
+  | :run    | | Agent| | Agent  |
+  +---------+ +------+ +--------+
+       |        |        |
+       v        v        v
+  Snowflake    Cortex   llama-server
+  (managed)   COMPLETE   (:8080)
+               (SQL)    Qwen 2.5 0.5B
+       |        |        |
+       +--------+--------+
+                |
+                v
+  +----------------------------------+
+  |  Snowflake Observability         |
+  |  - AI_OBSERVABILITY_EVENTS       |
+  |  - CORTEX_AI_FUNCTIONS_USAGE     |
+  |  - QUERY_HISTORY                 |
+  |  - AGENT_FEEDBACK table          |
+  |  - SPAN_ATTRIBUTE_MAP            |
+  +----------------------------------+
+</pre>
+        </div>
+
+        <h3>Telemetry pipeline</h3>
+        <p>All agents emit telemetry to the same Snowflake event table, regardless of their architecture:</p>
+        <div class="flow-steps">
+            <div class="flow-step">Agent runs</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">OTEL spans emitted</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Snowflake event table</div>
+            <div class="flow-arrow">&#8594;</div>
+            <div class="flow-step">Traces page queries</div>
+        </div>
+
+        <p>For <strong>Cortex Agents</strong>, telemetry is automatic. For <strong>external agents</strong>, TruLens instruments the code and exports spans via the OTEL protocol to Snowflake's <code>SYSTEM$EXECUTE_AI_OBSERVABILITY_RUN</code> procedure.</p>
+
+        <h3>Attribute mapping</h3>
+        <p>Different agent frameworks name their span attributes differently. A <code>SPAN_ATTRIBUTE_MAP</code> table in Snowflake normalizes them:</p>
+        <div class="code-block">
+<span class="comment">-- Same concept, three different attribute paths:</span>
+<span class="keyword">Cortex Agent:</span>  <span class="string">snow.ai.observability.agent.planning.model</span>
+<span class="keyword">REST API:</span>     <span class="string">model</span>
+<span class="keyword">External:</span>     <span class="string">gen_ai.request.model</span>
+
+<span class="comment">-- The mapping table tells the UI where to look for each agent type.</span>
+<span class="comment">-- Adding a new framework = INSERT rows. No code changes.</span>
+        </div>
+    </div>
+</section>
+
+<!-- Data & Objects -->
+<section>
+    <div class="container">
+        <h2>Snowflake objects</h2>
+        <p>Everything lives in a single database: <code>AGENT_ROI_DEMO.APP</code></p>
+
+        <h3>Agents</h3>
+        <table class="agent-table">
+            <thead><tr><th>Object</th><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>ROI_DEMO_AGENT</code></td><td>AGENT</td><td>Sales &amp; policy questions (Cortex Analyst + Cortex Search)</td></tr>
+                <tr><td><code>TRACE_ANALYST_AGENT</code></td><td>AGENT</td><td>Questions about observability data</td></tr>
+                <tr><td><code>KNOWLEDGE_RAG_AGENT</code></td><td>EXTERNAL AGENT</td><td>Metadata anchor for RAG agent telemetry</td></tr>
+                <tr><td><code>LOCAL_QA_AGENT</code></td><td>EXTERNAL AGENT</td><td>Metadata anchor for local LLM agent telemetry</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Supporting objects</h3>
+        <table class="agent-table">
+            <thead><tr><th>Object</th><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>SALES_SEMANTIC_VIEW</code></td><td>Semantic View</td><td>Defines sales data model for Cortex Analyst</td></tr>
+                <tr><td><code>KNOWLEDGE_SEARCH</code></td><td>Cortex Search</td><td>Policy/FAQ document search service</td></tr>
+                <tr><td><code>TRACE_OBSERVABILITY_VIEW</code></td><td>Semantic View</td><td>Trace data model for the Trace Analyst agent</td></tr>
+                <tr><td><code>AGENT_REGISTRY</code></td><td>Table</td><td>Multi-agent configuration registry</td></tr>
+                <tr><td><code>AGENT_FEEDBACK</code></td><td>Table</td><td>Feedback storage for external agents</td></tr>
+                <tr><td><code>SPAN_ATTRIBUTE_MAP</code></td><td>Table</td><td>Telemetry attribute normalization mapping</td></tr>
+                <tr><td><code>V_ROI_SUMMARY</code></td><td>View</td><td>Daily ROI metrics (requests, feedback, costs)</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Running It -->
+<section>
+    <div class="container">
+        <h2>Running the demo</h2>
+        <p>Four terminals, four services:</p>
+
+        <div class="code-block">
+<span class="comment"># Terminal 1: Local LLM (for the External Agent)</span>
+llama-server -m ~/models/qwen2.5-0.5b-instruct-q4_k_m.gguf --port 8080 -c 2048 --n-gpu-layers 99
+
+<span class="comment"># Terminal 2: Knowledge RAG Agent (Cortex REST API)</span>
+<span class="keyword">cd</span> external-agent && <span class="keyword">source</span> .venv/bin/activate && python server.py
+
+<span class="comment"># Terminal 3: Local Q&A Agent (External)</span>
+<span class="keyword">cd</span> external-agent/local && <span class="keyword">source</span> .venv/bin/activate && python server.py
+
+<span class="comment"># Terminal 4: Next.js frontend</span>
+<span class="keyword">cd</span> app && npm run dev
+        </div>
+
+        <p>Then open <a href="http://localhost:3000">http://localhost:3000</a> in your browser.</p>
+
+        <h3>Project structure</h3>
+        <div class="code-block">
+agent_roi/
+├── app/                          <span class="comment"># Next.js frontend</span>
+│   ├── src/app/chat/             <span class="comment"># Chat with agent selector</span>
+│   ├── src/app/dashboard/        <span class="comment"># ROI metrics</span>
+│   ├── src/app/traces/           <span class="comment"># Gantt waterfall</span>
+│   ├── src/app/config/           <span class="comment"># Agent registry UI</span>
+│   └── src/app/api/              <span class="comment"># API routes (proxy to Snowflake + agents)</span>
+├── external-agent/
+│   ├── server.py                 <span class="comment"># Knowledge RAG Agent (port 8000)</span>
+│   ├── agent.py                  <span class="comment"># RAG logic + TruLens @instrument</span>
+│   └── local/
+│       ├── server.py             <span class="comment"># Local Q&A Agent (port 8001)</span>
+│       └── agent.py              <span class="comment"># LangGraph think/draft/refine</span>
+├── snowflake/                    <span class="comment"># SQL setup scripts (01-13)</span>
+└── scripts/
+    └── generate_conversations.py <span class="comment"># Batch test data generator</span>
+        </div>
+    </div>
+</section>
+
+<!-- Key Learnings -->
+<section>
+    <div class="container">
+        <h2>Key learnings and recommendations</h2>
+        <p>Findings from building this system, each with a clear action step for product teams.</p>
+
+        <h3>1. Telemetry spans differ across agent types -- you need a normalization layer</h3>
+        <p><strong>What we found:</strong> Cortex Agents emit rich, structured spans with Snowflake-specific attribute names (e.g., <code>snow.ai.observability.agent.planning.model</code>). TruLens-instrumented agents emit spans with different attribute names (e.g., <code>ai.observability.call.kwargs.input</code>). LangChain agents emit yet another format. Without normalization, your monitoring tools can't compare agents side-by-side.</p>
+        <p><strong>Action step:</strong> Define a standard set of telemetry attributes (model, query, tokens, status, response) and maintain a mapping table that translates each framework's native attribute names into your standard. We built <code>SPAN_ATTRIBUTE_MAP</code> for this. Adding a new framework = INSERT rows, no code changes. Recommend this becomes a managed Snowflake feature.</p>
+
+        <h3>2. Cortex Agents show rich traces; external agents show simpler ones (for now)</h3>
+        <p><strong>What we found:</strong> A Cortex Agent trace shows 5-8 distinct span types: planning, tool selection, Cortex Analyst call, Cortex Search call, SQL execution, response generation, and sometimes replanning. External agent traces typically show fewer spans (e.g., just "generate" or "retrieve + generate").</p>
+        <p><strong>Is this a permanent limitation?</strong> No. The difference is because:</p>
+        <ul style="margin: 12px 0 12px 24px; color: var(--text-muted);">
+            <li>Cortex Agents have a built-in reasoning loop (plan &rarr; select tool &rarr; execute &rarr; evaluate &rarr; respond or replan). Snowflake instruments every step automatically.</li>
+            <li>Our external agents are intentionally simple (single RAG pipeline, or a 3-step LangGraph). They don't have tool selection, replanning, or multi-tool orchestration.</li>
+            <li>If you build an external agent with full agentic behavior (tool router, memory, evaluation loops), TruLens/LangGraph will emit spans for each step -- producing traces just as rich as Cortex Agents.</li>
+        </ul>
+        <p><strong>Action step:</strong> The trace richness depends on agent complexity, not the monitoring system. If you need comparable trace depth, instrument your external agents with the same patterns: separate the planning step, tool selection, tool execution, and response generation into distinct functions or nodes. The observability system will capture them.</p>
+
+        <h3>3. Feedback events have no trace identifier</h3>
+        <p><strong>What we found:</strong> When a user submits feedback via the Cortex Agent <code>:feedback</code> API, the resulting observability event has no <code>trace_id</code> or <code>input_id</code> linking it to the specific conversation it's about. We can only match feedback to traces by timestamp proximity (within 60 seconds).</p>
+        <p><strong>Action step:</strong> File a product request for Snowflake to include a <code>trace_id</code> or <code>request_id</code> in feedback events. Until then, design your UI to submit feedback immediately after a response (minimize the time gap), and use conservative matching windows. For external agents, we solved this by storing the TruLens <code>record_id</code> alongside feedback for exact matching.</p>
+
+        <h3>4. Dynamic tables can't use table functions as sources</h3>
+        <p><strong>What we found:</strong> We tried to create a dynamic table over <code>GET_AI_OBSERVABILITY_EVENTS()</code> for auto-refreshing materialized trace data. Snowflake rejected it: table functions are not supported as dynamic table sources.</p>
+        <p><strong>Action step:</strong> Use a scheduled task (CTAS every 5 minutes) as the alternative for materializing observability data. Budget for the warehouse cost of periodic refresh. Alternatively, query the table function directly and accept the latency (~1-2 seconds per query).</p>
+
+        <h3>5. Credit attribution has 60-minute latency</h3>
+        <p><strong>What we found:</strong> <code>CORTEX_AI_FUNCTIONS_USAGE_HISTORY</code> takes up to 60 minutes to reflect new usage. <code>QUERY_HISTORY</code> has up to 45-minute latency. This means your ROI dashboard won't show real-time cost data.</p>
+        <p><strong>Action step:</strong> Design dashboards with this expectation. Show "last updated" timestamps. For real-time cost estimates, consider maintaining a running estimate based on token counts (available immediately in spans) multiplied by published per-token rates, then reconcile with actual credit data after the latency window.</p>
+
+        <h3>6. TruLens OTEL export requires careful setup</h3>
+        <p><strong>What we found:</strong> Three gotchas with TruLens's Snowflake span exporter:</p>
+        <ul style="margin: 12px 0 12px 24px; color: var(--text-muted);">
+            <li><strong>Version case sensitivity:</strong> External Agent versions must be uppercase (<code>V1</code> not <code>v1</code>) or the ingestion procedure fails silently.</li>
+            <li><strong>Background evaluator crashes:</strong> The evaluator thread throws errors when no prior events exist. Always pass <code>start_evaluator=False</code>.</li>
+            <li><strong>PAT authentication:</strong> Use <code>authenticator='programmatic_access_token'</code>, not <code>'oauth'</code>.</li>
+        </ul>
+        <p><strong>Action step:</strong> Document these in your team's setup guide. For production deployments, wrap TruLens initialization in try/catch with clear error messages for each failure mode. Consider contributing fixes upstream to the TruLens open-source project.</p>
+
+        <h3>7. The feedback API is a generic envelope -- not a rigid schema</h3>
+        <p><strong>What we found:</strong> The Cortex Agent <code>:feedback</code> API accepts any strings in the <code>categories</code> array. This means you're not locked into "thumbs up/down" -- you can design arbitrarily rich feedback interfaces (star ratings, task completion, deal outcomes, code review scores) and send it all through the same API.</p>
+        <p><strong>Action step:</strong> Treat feedback design as a product decision, not a technical one. Define a <code>key:value</code> convention for categories (e.g., <code>"stars:4"</code>, <code>"value:High"</code>, <code>"time_saved:15-30 min"</code>). Build your ROI formula to parse whatever keys you define. The backend and API don't need to change when you add new feedback types -- only the UI and the ROI calculation logic.</p>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p>Agent ROI Demo &mdash; Built with Snowflake Cortex, TruLens, LangGraph, and llama.cpp</p>
+        <p style="margin-top: 8px; font-size: 0.8rem;">Database: AGENT_ROI_DEMO | Schema: APP</p>
+    </div>
+</footer>
+
+</body>
+</html>
