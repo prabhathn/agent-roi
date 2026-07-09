@@ -97,6 +97,7 @@ tiktoken==0.13.0
 tomlkit==0.15.0
 tqdm==4.67.3
 trulens-apps-langchain==2.8.1
+trulens-apps-langgraph==2.8.1
 trulens-connectors-snowflake==2.8.1
 trulens-core==2.8.1
 trulens-feedback==2.8.1

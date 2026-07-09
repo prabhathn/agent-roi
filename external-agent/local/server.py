@@ -13,21 +13,21 @@ from agent import agent
 
 # Global references
 tru_session = None
-tru_chain = None
+tru_graph = None
 # Store recent records for feedback (record_id -> time)
 recent_records: dict = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global tru_session, tru_chain
+    global tru_session, tru_graph
 
     print("Initializing TruLens session...")
     tru_session = get_tru_session()
 
-    print("Wrapping agent with TruChain...")
-    from trulens.apps.langchain import TruChain
-    tru_chain = TruChain(
+    print("Wrapping agent with TruGraph...")
+    from trulens.apps.langgraph import TruGraph
+    tru_graph = TruGraph(
         agent,
         app_name=APP_NAME,
         app_version=APP_VERSION,
@@ -97,9 +97,9 @@ async def chat(request: Request):
         # Status: thinking
         yield f"event: response.status\ndata: {json.dumps({'message': 'Thinking...', 'status': 'planning', 'sequence_number': 0})}\n\n"
 
-        # Run the LangGraph agent via TruChain
+        # Run the LangGraph agent via TruGraph
         try:
-            with tru_chain as recording:
+            with tru_graph as recording:
                 result = agent.invoke({"query": query})
         except Exception as e:
             yield f"event: response.text.delta\ndata: {json.dumps({'text': f'Error: {str(e)}'})}\n\n"

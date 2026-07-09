@@ -1,5 +1,6 @@
 # agent.py - LangGraph agent with think/draft/refine reasoning steps
 # Uses a local llama-server (Qwen 2.5 0.5B) via OpenAI-compatible API
+# TruGraph instruments at graph-node level for step visibility
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
