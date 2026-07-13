@@ -10,6 +10,98 @@ import { TaskCompleteForm } from '@/components/TaskCompleteForm';
 import { getTaskState, startTask, endTask, isTaskStale } from '@/lib/task-state';
 import { getElapsedTime } from '@/lib/task-state';
 
+function VegaChart({ spec }: { spec: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    if (!iframeRef.current) return;
+    const html = `<!DOCTYPE html>
+<html><head>
+<script src="https://cdn.jsdelivr.net/npm/vega@5.25.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5.16.3"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6.22.2"></script>
+<style>body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:transparent;} #chart{width:100%;display:block;}</style>
+</head><body>
+<div id="chart"></div>
+<script>
+try {
+  const spec = ${spec};
+  
+  // Style to match app theme
+  spec.width = "container";
+  spec.height = 280;
+  spec.background = "transparent";
+  spec.config = spec.config || {};
+  spec.config.font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  spec.config.title = { fontSize: 14, fontWeight: 600, color: "#2d2b28" };
+  spec.config.axis = { 
+    labelFontSize: 11, titleFontSize: 12, titleColor: "#5c554a", 
+    labelColor: "#5c554a", gridColor: "#e8e0d4", domainColor: "#d4c9b8"
+  };
+  spec.config.legend = { labelFontSize: 11, titleFontSize: 12, labelColor: "#5c554a" };
+  spec.config.mark = { color: "#d97706" };
+  spec.config.bar = { color: "#d97706" };
+  spec.config.range = { category: ["#d97706", "#b45309", "#92400e", "#78350f", "#8b7e6e", "#5c554a"] };
+  
+  // Add value labels to bar charts
+  if (spec.mark === "bar" || (spec.mark && spec.mark.type === "bar")) {
+    const origSpec = JSON.parse(JSON.stringify(spec));
+    const quantField = origSpec.encoding.x && origSpec.encoding.x.type === "quantitative" 
+      ? origSpec.encoding.x.field 
+      : (origSpec.encoding.y && origSpec.encoding.y.type === "quantitative" ? origSpec.encoding.y.field : null);
+    
+    if (quantField) {
+      const isHorizontal = origSpec.encoding.x && origSpec.encoding.x.type === "quantitative";
+      spec.layer = [
+        { mark: origSpec.mark, encoding: origSpec.encoding },
+        { 
+          mark: { type: "text", align: isHorizontal ? "left" : "center", 
+                  dx: isHorizontal ? 4 : 0, dy: isHorizontal ? 0 : -8,
+                  fontSize: 11, color: "#5c554a" },
+          encoding: {
+            ...origSpec.encoding,
+            text: { field: quantField, type: "quantitative", format: ",.0f" }
+          }
+        }
+      ];
+      delete spec.mark;
+      delete spec.encoding;
+    }
+  }
+  
+  vegaEmbed('#chart', spec, {actions: false, renderer: 'svg'})
+    .then(result => {
+      const h = document.querySelector('#chart svg')?.getBoundingClientRect().height || 300;
+      if (window.frameElement) window.frameElement.style.height = (h + 8) + 'px';
+    });
+} catch(e) { document.body.innerHTML = '<p style="color:red;font-size:12px;">Chart error: ' + e.message + '</p>'; }
+</script></body></html>`;
+    iframeRef.current.srcdoc = html;
+  }, [spec]);
+  return <iframe ref={iframeRef} className="w-full rounded-md" style={{height: '320px', border: 'none', background: 'transparent'}} sandbox="allow-scripts allow-same-origin" title="Chart" />;
+}
+
+function MessageContent({ content }: { content: string }) {
+  // Split content by chart markers [[CHART:...]]
+  const parts = content.split(/\[\[CHART:([\s\S]*?)\]\]/);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (i % 2 === 1) {
+          // Odd indices are chart specs
+          return <VegaChart key={i} spec={part} />;
+        }
+        // Even indices are text - render as markdown
+        if (!part.trim()) return null;
+        return (
+          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={{
+            del: ({children}) => <span>~{children}~</span>,
+          }}>{part}</ReactMarkdown>
+        );
+      })}
+    </>
+  );
+}
+
 function TaskTimer() {
   const [elapsed, setElapsed] = useState(getElapsedTime());
   useEffect(() => {
@@ -138,11 +230,17 @@ export default function ChatPage() {
 
     try {
       const runUrl = selectedSlug ? `/api/agent/${selectedSlug}/run` : '/api/agent/run';
+      // Build full conversation history for context
+      const conversationHistory = messages
+        .filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content))
+        .map((m) => ({ role: m.role, content: m.content }));
+      conversationHistory.push({ role: 'user', content: input.trim() });
+
       const response = await fetch(runUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: input.trim() }],
+          messages: conversationHistory,
           ...(threadId && { thread_id: threadId }),
         }),
       });
@@ -225,6 +323,18 @@ export default function ChatPage() {
               // Final text content
               if (currentEvent === 'response.text.delta' && data.text) {
                 fullContent += data.text;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMessage.id
+                      ? { ...m, content: fullContent, isThinking: false }
+                      : m
+                  )
+                );
+              }
+
+              // Chart event from Cortex Agent
+              if (currentEvent === 'response.chart' && data.chart_spec) {
+                fullContent += `\n\n[[CHART:${data.chart_spec}]]\n\n`;
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id
@@ -397,16 +507,28 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
           {messages.length === 0 && (
-            <div className="text-center mt-24">
+            <div className="text-center mt-16">
               <p className="text-lg text-[var(--text-secondary)]">How can I help you today?</p>
-              <div className="flex flex-wrap justify-center gap-2 mt-4">
-                {['What is the total revenue by region?', 'What is our refund policy?', 'Which market segments generate the most revenue?'].map((q) => (
+              <p className="text-xs text-[var(--text-muted)] mt-1 mb-4">Select an agent above, then try one of these queries</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto text-left">
+                {[
+                  { label: 'Revenue by region', q: 'What is the total revenue by region?' },
+                  { label: 'Revenue chart', q: 'Show me a chart of revenue by market segment' },
+                  { label: 'Top customers', q: 'Who are our top 10 customers by order count and what segments are they in?' },
+                  { label: 'Monthly trends', q: 'Show me the monthly revenue trend with a chart' },
+                  { label: 'Refund policy', q: 'What is our refund policy for international orders?' },
+                  { label: 'Priority escalation', q: 'When can an order be escalated to urgent priority and what is the process?' },
+                  { label: 'Regional comparison', q: 'Compare the average order value across regions and identify which region has the most high-priority orders' },
+                  { label: 'Segment deep-dive', q: 'Break down revenue by market segment and order status, then explain which segments have the most open orders' },
+                ].map(({ label, q }) => (
                   <button
                     key={q}
                     onClick={() => setInput(q)}
-                    className="px-3 py-1.5 text-xs border border-[var(--border)] rounded-full text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:border-[var(--border-strong)] transition-colors"
+                    className="px-3 py-2 text-xs border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:border-[var(--border-strong)] transition-colors text-left"
                   >
-                    {q}
+                    <span className="font-medium text-[var(--foreground)]">{label}</span>
+                    <br />
+                    <span className="text-[var(--text-muted)]">{q}</span>
                   </button>
                 ))}
               </div>
@@ -450,7 +572,7 @@ export default function ChatPage() {
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             <span className="text-xs font-medium text-[var(--text-muted)]">Thinking...</span>
                           </div>
-                          <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto">
+                          <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto" ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
                             {msg.thinking}
                           </pre>
                         </div>
@@ -483,7 +605,7 @@ export default function ChatPage() {
                   {(msg.content || (!msg.isThinking && msg.isStreaming)) && (
                     <div className="text-sm text-[var(--foreground)] leading-relaxed prose prose-sm prose-stone max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-[var(--foreground)] prose-code:text-amber-800 prose-code:bg-amber-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs">
                       {msg.content ? (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        <MessageContent content={msg.content} />
                       ) : (
                         <span className="text-[var(--text-muted)] animate-pulse">...</span>
                       )}

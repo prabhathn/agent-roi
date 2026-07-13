@@ -46,6 +46,24 @@ interface SpanRow {
   num_rows: string | null;
   verified_query_used: string | null;
   semantic_model: string | null;
+  // Chart generation fields
+  chart_spec: string | null;
+  chart_data_sql: string | null;
+  // Planning detail fields
+  step_number: string | null;
+  cache_read_tokens: string | null;
+  cache_write_tokens: string | null;
+  tool_args: string | null;
+  tool_exec_name: string | null;
+  tool_exec_type: string | null;
+  // SQL execution detail fields
+  final_sql: string | null;
+  execution_status: string | null;
+  sql_result_data: string | null;
+  validation_error: string | null;
+  sql_warehouse: string | null;
+  // Search detail fields
+  search_limit: string | null;
   // Query history fields (loaded async)
   bytes_scanned: string | null;
   compilation_time: string | null;
@@ -173,10 +191,9 @@ export default function TracesPage() {
                 TIMESTAMP AS end_timestamp,
                 CASE WHEN RECORD:name::VARCHAR LIKE 'ReasoningAgentStepPlanning%' AND TRY_TO_NUMBER(REGEXP_SUBSTR(RECORD:name::VARCHAR, '\\\\d+$')) > 0 THEN TRUE ELSE FALSE END AS is_replan,
                 CASE WHEN RECORD:severity_text::VARCHAR IN ('ERROR', 'FATAL') OR RECORD_ATTRIBUTES:"exception.type"::VARCHAR IS NOT NULL THEN TRUE ELSE FALSE END AS has_error
-              FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
-                '${db}', '${schema}', '${name}', '${type}'
-              ))
-              WHERE RECORD_TYPE = 'SPAN'
+              FROM AGENT_ROI_DEMO.APP.TRACE_EVENTS_MATERIALIZED
+              WHERE agent_slug = '${ag.slug}'
+              AND RECORD_TYPE = 'SPAN'
             ),
             traces AS (
               SELECT trace_id, MIN(start_timestamp) AS started_at, MAX(end_timestamp) AS ended_at,
@@ -192,10 +209,9 @@ export default function TracesPage() {
               SELECT
                 TIMESTAMP AS fb_time,
                 VALUE:positive::BOOLEAN AS positive
-              FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
-                '${db}', '${schema}', '${name}', '${type}'
-              ))
-              WHERE RECORD:name::VARCHAR = 'CORTEX_AGENT_FEEDBACK'
+              FROM AGENT_ROI_DEMO.APP.TRACE_EVENTS_MATERIALIZED
+              WHERE agent_slug = '${ag.slug}'
+              AND RECORD:name::VARCHAR = 'CORTEX_AGENT_FEEDBACK'
             )
             SELECT t.*,
               BOOLOR_AGG(CASE WHEN f.positive = TRUE THEN TRUE ELSE FALSE END) AS has_positive_feedback,
@@ -225,7 +241,9 @@ export default function TracesPage() {
     finally { setLoading(false); }
   }, [agents]);
 
-  const fetchSpans = useCallback(async (traceId: string) => {
+  const fetchSpans = useCallback(async (traceId: string, agentSlug?: string) => {
+    const slug = agentSlug || selectedTraceAgent?.agent_slug || '';
+    if (!slug) return;
     setSpansLoading(true);
     try {
       const response = await fetch('/api/sql', {
@@ -279,24 +297,37 @@ export default function TracesPage() {
             ${buildAttrExpr('tokens_input', selectedAgent?.agent_type || 'cortex_agent')} AS input_tokens,
             ${buildAttrExpr('tokens_output', selectedAgent?.agent_type || 'cortex_agent')} AS output_tokens,
             RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.token_count.total"::VARCHAR AS total_tokens,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.token_count.cache_read_input"::VARCHAR AS cache_read_tokens,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.token_count.cache_write_input"::VARCHAR AS cache_write_tokens,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.step_number"::VARCHAR AS step_number,
+            LEFT(RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.tool_selection.argument.value"::VARCHAR, 500) AS tool_args,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.tool_execution.name"::VARCHAR AS tool_exec_name,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.planning.tool_execution.type"::VARCHAR AS tool_exec_type,
             ${buildAttrExpr('thinking', selectedAgent?.agent_type || 'cortex_agent')} AS thinking,
             LEFT(${buildAttrExpr('response_preview', selectedAgent?.agent_type || 'cortex_agent')}, 500) AS response_preview,
             ${buildAttrExpr('search_query', selectedAgent?.agent_type || 'cortex_agent')} AS search_query,
             LEFT(RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.cortex_search.results"::VARCHAR, 500) AS search_results,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.cortex_search.limit"::VARCHAR AS search_limit,
             ${buildAttrExpr('status', selectedAgent?.agent_type || 'cortex_agent')} AS status,
             ${buildAttrExpr('sql_query', selectedAgent?.agent_type || 'cortex_agent')} AS sql_query,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.sql_execution.final_sql"::VARCHAR AS final_sql,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.sql_execution.execution_status"::VARCHAR AS execution_status,
+            LEFT(RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.sql_execution.result"::VARCHAR, 1000) AS sql_result_data,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.sql_execution.validation_error.0.message"::VARCHAR AS validation_error,
+            RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.sql_execution.warehouse"::VARCHAR AS sql_warehouse,
             ${buildAttrExpr('query_id', selectedAgent?.agent_type || 'cortex_agent')} AS query_id,
             ${buildAttrExpr('num_rows', selectedAgent?.agent_type || 'cortex_agent')} AS num_rows,
             ${buildAttrExpr('verified_query_used', selectedAgent?.agent_type || 'cortex_agent')} AS verified_query_used,
             ${buildAttrExpr('semantic_model', selectedAgent?.agent_type || 'cortex_agent')} AS semantic_model,
+            LEFT(RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.chart_generation.input_chart_spec"::VARCHAR, 2000) AS chart_spec,
+            LEFT(RECORD_ATTRIBUTES:"snow.ai.observability.agent.tool.chart_generation.data"::VARCHAR, 1000) AS chart_data_sql,
             NULL AS bytes_scanned, NULL AS compilation_time, NULL AS execution_time,
             NULL AS partitions_scanned, NULL AS partitions_total, NULL AS warehouse_name,
             START_TIMESTAMP::VARCHAR AS start_ts,
             TIMESTAMP::VARCHAR AS end_ts
-          FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
-            '${agentDb}', '${agentSchema}', '${agentName}', '${agentType}'
-          ))
-          WHERE RECORD_TYPE = 'SPAN'
+          FROM AGENT_ROI_DEMO.APP.TRACE_EVENTS_MATERIALIZED
+          WHERE agent_slug = '${slug}'
+          AND RECORD_TYPE = 'SPAN'
             AND TRACE:trace_id::VARCHAR = '${traceId}'
             AND RECORD:name::VARCHAR NOT IN ('AgentV2RequestResponseInfo', 'CORTEX_AGENT_REQUEST')
           ORDER BY START_TIMESTAMP`,
@@ -334,22 +365,33 @@ export default function TracesPage() {
   }, [queryStats, queryStatsLoading]);
 
   useEffect(() => { fetchTraces(); }, [fetchTraces]);
-  useEffect(() => { if (selectedTrace) { fetchSpans(selectedTrace); setExpandedSpan(null); setFeedback([]); fetchFeedback(selectedTrace); } }, [selectedTrace, fetchSpans]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { 
+    if (selectedTrace) { 
+      const traceRow = traces.find((t) => t.trace_id === selectedTrace);
+      const slug = traceRow?.agent_slug || '';
+      fetchSpans(selectedTrace, slug); 
+      setExpandedSpan(null); 
+      setFeedback([]); 
+      fetchFeedback(selectedTrace, slug); 
+    } 
+  }, [selectedTrace]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchFeedback = useCallback(async (traceId: string) => {
+  const fetchFeedback = useCallback(async (traceId: string, agSlug?: string) => {
     try {
       let sql: string;
+      const slug = agSlug || selectedTraceAgent?.agent_slug || '';
+      const agType = agents.find(a => a.slug === slug)?.agent_type;
+      const isExternal = agType === 'cortex_rest_api' || agType === 'external_agent';
 
-      if (agentType === 'EXTERNAL AGENT') {
+      if (isExternal) {
         // For external agents, feedback is in AGENT_FEEDBACK table
         // Match by record_id found in the trace's span attributes
-        const agentSlug = selectedTraceAgent?.agent_slug || '';
+        const agentSlug = slug;
         sql = `WITH trace_records AS (
             SELECT DISTINCT RECORD_ATTRIBUTES:"ai.observability.record_id"::VARCHAR AS record_id
-            FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
-              '${agentDb}', '${agentSchema}', '${agentName}', '${agentType}'
-            ))
-            WHERE RECORD_TYPE = 'SPAN' AND TRACE:trace_id::VARCHAR = '${traceId}'
+            FROM AGENT_ROI_DEMO.APP.TRACE_EVENTS_MATERIALIZED
+            WHERE agent_slug = '${slug}'
+            AND RECORD_TYPE = 'SPAN' AND TRACE:trace_id::VARCHAR = '${traceId}'
               AND RECORD_ATTRIBUTES:"ai.observability.record_id" IS NOT NULL
           )
           SELECT
@@ -366,20 +408,18 @@ export default function TracesPage() {
         // For Cortex agents, feedback is in observability events
         sql = `WITH trace_window AS (
             SELECT MIN(START_TIMESTAMP) AS trace_start, MAX(TIMESTAMP) AS trace_end
-            FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
-              '${agentDb}', '${agentSchema}', '${agentName}', '${agentType}'
-            ))
-            WHERE RECORD_TYPE = 'SPAN' AND TRACE:trace_id::VARCHAR = '${traceId}'
+            FROM AGENT_ROI_DEMO.APP.TRACE_EVENTS_MATERIALIZED
+            WHERE agent_slug = '${slug}'
+            AND RECORD_TYPE = 'SPAN' AND TRACE:trace_id::VARCHAR = '${traceId}'
           )
           SELECT
             VALUE:positive::BOOLEAN AS positive,
             VALUE:categories::VARCHAR AS categories,
             VALUE:feedback_message::VARCHAR AS message,
             TIMESTAMP::VARCHAR AS timestamp
-          FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_EVENTS(
-            '${agentDb}', '${agentSchema}', '${agentName}', '${agentType}'
-          )), trace_window tw
-          WHERE RECORD:name::VARCHAR = 'CORTEX_AGENT_FEEDBACK'
+          FROM AGENT_ROI_DEMO.APP.TRACE_EVENTS_MATERIALIZED, trace_window tw
+          WHERE agent_slug = '${slug}'
+          AND RECORD:name::VARCHAR = 'CORTEX_AGENT_FEEDBACK'
             AND TIMESTAMP BETWEEN tw.trace_end AND DATEADD('second', 60, tw.trace_end)
           ORDER BY TIMESTAMP
           LIMIT 3`;
@@ -437,7 +477,7 @@ export default function TracesPage() {
   };
 
   const hasDetails = (span: SpanRow) => {
-    return span.model || span.user_query || span.selected_tool || span.search_query || span.thinking || span.response_preview || span.sql_query || span.query_id || span.status || span.num_rows;
+    return span.model || span.user_query || span.selected_tool || span.search_query || span.thinking || span.response_preview || span.sql_query || span.query_id || span.status || span.num_rows || span.chart_spec || span.tool_exec_name || span.tool_args || span.sql_result_data;
   };
 
   if (loading) {
@@ -452,7 +492,24 @@ export default function TracesPage() {
     <div className="mx-auto px-6 py-8" style={{ maxWidth: '90rem' }}>
       {/* Header with Ask AI toggle */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold text-[var(--foreground)]">Traces</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-[var(--foreground)]">Traces</h1>
+          <button
+            onClick={async () => {
+              const btn = document.getElementById('refresh-btn');
+              if (btn) btn.textContent = 'Refreshing...';
+              try {
+                await fetch('/api/traces/refresh', { method: 'POST' });
+                await fetchTraces();
+              } catch { /* ignore */ }
+              if (btn) btn.textContent = 'Refresh';
+            }}
+            id="refresh-btn"
+            className="px-2.5 py-1 text-[10px] font-medium rounded border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
         <button
           onClick={() => setShowChat(!showChat)}
           className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
@@ -603,6 +660,9 @@ export default function TracesPage() {
                       {/* Expanded detail panel */}
                       {isExpanded && (
                         <div className="ml-[7.5rem] mr-20 mt-1 mb-2 bg-[var(--surface-secondary)] border border-[var(--border)] rounded-lg p-3 space-y-2 text-xs">
+                          {span.step_number && (
+                            <DetailRow label="Step" value={`#${span.step_number}`} />
+                          )}
                           {span.model && (
                             <DetailRow label="Model" value={span.model} />
                           )}
@@ -610,13 +670,28 @@ export default function TracesPage() {
                             <DetailRow label="Query" value={span.user_query} />
                           )}
                           {span.selected_tool && (
-                            <DetailRow label="Tool Selected" value={span.selected_tool} />
+                            <DetailRow label="Tool Selected" value={typeof span.selected_tool === 'object' ? JSON.stringify(span.selected_tool) : span.selected_tool} />
+                          )}
+                          {span.tool_args && (
+                            <div>
+                              <span className="text-[var(--text-muted)] font-medium">Tool Arguments:</span>
+                              <pre className="text-[var(--text-secondary)] mt-0.5 whitespace-pre-wrap font-mono text-[11px] bg-[var(--surface)] border border-[var(--border)] rounded p-2 max-h-24 overflow-y-auto">{typeof span.tool_args === 'object' ? JSON.stringify(span.tool_args, null, 2) : span.tool_args}</pre>
+                            </div>
+                          )}
+                          {span.tool_exec_name && !span.selected_tool && (
+                            <DetailRow label="Processing Results From" value={typeof span.tool_exec_name === 'object' ? JSON.stringify(span.tool_exec_name) : span.tool_exec_name} />
+                          )}
+                          {span.tool_exec_type && !span.selected_tool && (
+                            <DetailRow label="Tool Type" value={typeof span.tool_exec_type === 'object' ? JSON.stringify(span.tool_exec_type) : span.tool_exec_type} />
                           )}
                           {span.search_query && (
                             <DetailRow label="Search Query" value={span.search_query} />
                           )}
+                          {span.search_limit && (
+                            <DetailRow label="Search Limit" value={span.search_limit} />
+                          )}
                           {(span.input_tokens || span.output_tokens) && (
-                            <DetailRow label="Tokens" value={`${span.input_tokens || 0} in / ${span.output_tokens || 0} out${span.total_tokens ? ` (${span.total_tokens} total)` : ''}`} />
+                            <DetailRow label="Tokens" value={`${span.input_tokens || 0} in / ${span.output_tokens || 0} out${span.total_tokens ? ` (${span.total_tokens} total)` : ''}${span.cache_read_tokens ? ` | cache read: ${span.cache_read_tokens}` : ''}${span.cache_write_tokens ? ` | cache write: ${span.cache_write_tokens}` : ''}`} />
                           )}
                           {span.thinking && (
                             <div>
@@ -636,6 +711,30 @@ export default function TracesPage() {
                               <pre className="text-[var(--text-secondary)] mt-0.5 whitespace-pre-wrap font-mono text-[11px] bg-[var(--surface)] border border-[var(--border)] rounded p-2 max-h-40 overflow-y-auto">{typeof span.sql_query === 'object' ? JSON.stringify(span.sql_query) : span.sql_query}</pre>
                             </div>
                           )}
+                          {span.final_sql && span.final_sql !== span.sql_query && (
+                            <div>
+                              <span className="text-[var(--text-muted)] font-medium">Final SQL (rewritten):</span>
+                              <pre className="text-[var(--text-secondary)] mt-0.5 whitespace-pre-wrap font-mono text-[11px] bg-[var(--surface)] border border-[var(--border)] rounded p-2 max-h-40 overflow-y-auto">{typeof span.final_sql === 'object' ? JSON.stringify(span.final_sql) : span.final_sql}</pre>
+                            </div>
+                          )}
+                          {span.execution_status && (
+                            <DetailRow label="Execution Status" value={span.execution_status} />
+                          )}
+                          {span.validation_error && (
+                            <div>
+                              <span className="text-amber-600 font-medium">Validation Warning:</span>
+                              <p className="text-amber-700 mt-0.5">{typeof span.validation_error === 'object' ? JSON.stringify(span.validation_error) : span.validation_error}</p>
+                            </div>
+                          )}
+                          {span.sql_result_data && (
+                            <div>
+                              <span className="text-[var(--text-muted)] font-medium">Result Data:</span>
+                              <pre className="text-[var(--text-secondary)] mt-0.5 whitespace-pre-wrap font-mono text-[11px] bg-[var(--surface)] border border-[var(--border)] rounded p-2 max-h-32 overflow-y-auto">{typeof span.sql_result_data === 'object' ? JSON.stringify(span.sql_result_data, null, 2) : (() => { try { return JSON.stringify(JSON.parse(span.sql_result_data), null, 2); } catch { return span.sql_result_data; } })()}</pre>
+                            </div>
+                          )}
+                          {span.sql_warehouse && (
+                            <DetailRow label="Warehouse" value={span.sql_warehouse} />
+                          )}
                           {span.query_id && (
                             <DetailRow label="Query ID" value={span.query_id} />
                           )}
@@ -647,6 +746,24 @@ export default function TracesPage() {
                           )}
                           {span.num_rows && (
                             <DetailRow label="Rows Returned" value={span.num_rows} />
+                          )}
+                          {/* Chart Generation details */}
+                          {span.chart_spec && (
+                            <div className="border-t border-[var(--border)] pt-2 mt-2">
+                              <span className="text-[var(--text-muted)] font-medium text-[11px] uppercase tracking-wider">Chart Generation</span>
+                              <div className="mt-1.5 space-y-2">
+                                <div>
+                                  <span className="text-[var(--text-muted)] font-medium">Vega-Lite Spec:</span>
+                                  <pre className="text-xs text-[var(--text-secondary)] mt-0.5 whitespace-pre-wrap max-h-40 overflow-y-auto bg-[var(--surface-secondary)] rounded p-2 font-mono">{typeof span.chart_spec === 'object' ? JSON.stringify(span.chart_spec, null, 2) : (() => { try { return JSON.stringify(JSON.parse(span.chart_spec), null, 2); } catch { return String(span.chart_spec); } })()}</pre>
+                                </div>
+                                {span.chart_data_sql && (
+                                  <div>
+                                    <span className="text-[var(--text-muted)] font-medium">Data SQL:</span>
+                                    <pre className="text-xs text-[var(--text-secondary)] mt-0.5 whitespace-pre-wrap max-h-24 overflow-y-auto bg-[var(--surface-secondary)] rounded p-2 font-mono">{typeof span.chart_data_sql === 'object' ? JSON.stringify(span.chart_data_sql) : span.chart_data_sql}</pre>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           )}
                           {/* Query History details - loaded async */}
                           {span.query_id && (

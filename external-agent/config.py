@@ -1,22 +1,20 @@
 # config.py - Snowflake connection + TruLens session initialization
-# Uses a programmatic access token (PAT) for authentication
+# Uses the same PAT token as the Next.js app for authentication
 
 import os
 
-# Snowflake connection parameters (override via environment variables)
-SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "")
-SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "admin")
-SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "AGENT_ROI_DEMO")
-SNOWFLAKE_SCHEMA = os.environ.get("SNOWFLAKE_SCHEMA", "APP")
-SNOWFLAKE_WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE", "AGENT_ROI_WH")
-SNOWFLAKE_ROLE = os.environ.get("SNOWFLAKE_ROLE", "ACCOUNTADMIN")
+# Snowflake connection parameters
+SNOWFLAKE_ACCOUNT = "SFSENORTHAMERICA-DEMO_IND_PNANISETTY"
+SNOWFLAKE_USER = "admin"
+SNOWFLAKE_DATABASE = "AGENT_ROI_DEMO"
+SNOWFLAKE_SCHEMA = "APP"
+SNOWFLAKE_WAREHOUSE = "AGENT_ROI_WH"
+SNOWFLAKE_ROLE = "ACCOUNTADMIN"
 
-# Token file path (from Snowflake CLI or set manually)
-TOKEN_FILE = os.path.expanduser(
-    os.environ.get("SNOWFLAKE_TOKEN_FILE", "~/.snowflake/tokens/token")
-)
+# Token file path (same as the Next.js app)
+TOKEN_FILE = os.path.expanduser("~/.snowflake/tokens/XFB07251ACCOUNTADMIN_token")
 
-# App metadata for TruLens OTEL export
+# App metadata for TruLens
 APP_NAME = "KNOWLEDGE_RAG_AGENT"
 APP_VERSION = "V1"
 

@@ -1,49 +1,11 @@
-# ============================================
-# Agent ROI Demo - Git Ignore
-# ============================================
-
-# Dependencies
 node_modules/
-.venv/
-__pycache__/
-*.egg-info/
-
-# Build artifacts
 .next/
-out/
-build/
-*.tsbuildinfo
-next-env.d.ts
-
-# Environment files (contain secrets)
 .env
 .env.local
-.env.*.local
-
-# IDE / OS
-.DS_Store
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Snowflake CLI artifacts
-.snowflake/
-
-# Python bytecode
+__pycache__/
 *.pyc
-*.pyo
-
-# Models (too large for git)
-*.gguf
-
-# Misc
-*.pem
-npm-debug.log*
-yarn-debug.log*
-.pnpm-debug.log*
-
-# Coverage
-coverage/
-.nyc_output/
+.venv/
+venv/
+*.egg-info/
+dist/
+.DS_Store

@@ -3,6 +3,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { AgentConfig } from '@/types';
 
+interface OutcomeCategory {
+  id: string;
+  agent_slug: string;
+  category_name: string;
+  category_type: string;
+  dollar_value: number;
+  color: string;
+  sort_order: number;
+}
+
 type FormData = Omit<AgentConfig, 'id'> & { id?: string };
 
 const emptyForm: FormData = {
@@ -228,7 +238,7 @@ export default function ConfigPage() {
       {/* Edit/Create Modal */}
       {editingAgent && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
             <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">
               {isNew ? 'Add Agent' : 'Edit Agent'}
             </h2>
@@ -479,6 +489,11 @@ export default function ConfigPage() {
                   Active
                 </label>
               </div>
+
+              {/* Outcome Categories (inline in agent config) */}
+              {!isNew && editingAgent.slug && (
+                <InlineOutcomeCategories agentSlug={editingAgent.slug} />
+              )}
             </div>
 
             {/* Actions */}
@@ -501,5 +516,127 @@ export default function ConfigPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function InlineOutcomeCategories({ agentSlug }: { agentSlug: string }) {
+  const [categories, setCategories] = useState<OutcomeCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newCat, setNewCat] = useState({ name: '', type: 'success', value: '0' });
+
+  const fetchCategories = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/outcomes/categories?agent_slug=${agentSlug}`);
+    setCategories(await res.json());
+    setLoading(false);
+  }, [agentSlug]);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const handleAdd = async () => {
+    if (!newCat.name) return;
+    await fetch('/api/outcomes/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_slug: agentSlug, category_name: newCat.name, category_type: newCat.type, dollar_value: parseFloat(newCat.value) || 0 }),
+    });
+    setNewCat({ name: '', type: 'success', value: '0' });
+    fetchCategories();
+  };
+
+  const handleUpdate = async (id: string, field: string, value: string | number) => {
+    await fetch('/api/outcomes/categories', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, [field]: value }),
+    });
+    fetchCategories();
+  };
+
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/outcomes/categories?id=${id}`, { method: 'DELETE' });
+    fetchCategories();
+  };
+
+  return (
+    <fieldset className="border border-[var(--border)] rounded-lg p-3">
+      <legend className="text-xs font-medium text-[var(--text-muted)] px-1">Outcome Categories</legend>
+      <table className="w-full text-xs mt-1">
+        <thead>
+          <tr className="text-[var(--text-muted)]">
+            <th className="text-left pb-1 font-medium">Name</th>
+            <th className="text-left pb-1 font-medium">Type</th>
+            <th className="text-right pb-1 font-medium">$ Value</th>
+            <th className="text-center pb-1 font-medium w-10">Color</th>
+            <th className="text-center pb-1 font-medium w-12"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={5} className="py-3 text-center text-[var(--text-muted)] animate-pulse">Loading categories...</td></tr>
+          ) : categories.length === 0 ? (
+            <tr><td colSpan={5} className="py-3 text-center text-[var(--text-muted)]">No categories yet. Add one below.</td></tr>
+          ) : (
+            categories.map(cat => (
+            <tr key={cat.id} className="border-t border-[var(--border)]">
+              <td className="py-1.5 text-[var(--foreground)]">{cat.category_name}</td>
+              <td className="py-1.5">
+                <select
+                  value={cat.category_type}
+                  onChange={(e) => handleUpdate(cat.id, 'category_type', e.target.value)}
+                  className="text-[10px] px-1 py-0.5 border border-[var(--border)] rounded bg-[var(--surface-secondary)]"
+                >
+                  <option value="success">Success</option>
+                  <option value="failure">Failure</option>
+                  <option value="partial">Partial</option>
+                  <option value="neutral">Neutral</option>
+                </select>
+              </td>
+              <td className="py-1.5 text-right">
+                <input
+                  type="number"
+                  defaultValue={cat.dollar_value}
+                  onBlur={(e) => handleUpdate(cat.id, 'dollar_value', parseFloat(e.target.value) || 0)}
+                  className="w-16 text-right text-[10px] px-1 py-0.5 border border-[var(--border)] rounded bg-[var(--surface-secondary)] font-mono"
+                />
+              </td>
+              <td className="py-1.5 text-center">
+                <input type="color" defaultValue={cat.color} onBlur={(e) => handleUpdate(cat.id, 'color', e.target.value)} className="w-5 h-5 rounded border cursor-pointer" />
+              </td>
+              <td className="py-1.5 text-center">
+                <button onClick={() => handleDelete(cat.id)} className="text-red-400 hover:text-red-600 text-[10px]">x</button>
+              </td>
+            </tr>
+          )))}
+        </tbody>
+      </table>
+      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[var(--border)]">
+        <input
+          type="text"
+          value={newCat.name}
+          onChange={(e) => setNewCat(p => ({ ...p, name: e.target.value }))}
+          placeholder="New category"
+          className="flex-1 h-6 px-2 text-[10px] border border-[var(--border)] rounded bg-[var(--surface-secondary)]"
+        />
+        <select
+          value={newCat.type}
+          onChange={(e) => setNewCat(p => ({ ...p, type: e.target.value }))}
+          className="text-[10px] h-6 px-1 border border-[var(--border)] rounded bg-[var(--surface-secondary)]"
+        >
+          <option value="success">Success</option>
+          <option value="failure">Failure</option>
+          <option value="partial">Partial</option>
+        </select>
+        <input
+          type="number"
+          value={newCat.value}
+          onChange={(e) => setNewCat(p => ({ ...p, value: e.target.value }))}
+          className="w-14 h-6 px-1 text-[10px] border border-[var(--border)] rounded bg-[var(--surface-secondary)] font-mono text-right"
+        />
+        <button onClick={handleAdd} disabled={!newCat.name} className="h-6 px-2 text-[10px] font-medium bg-[var(--foreground)] text-white rounded hover:opacity-90 disabled:opacity-50">
+          Add
+        </button>
+      </div>
+    </fieldset>
   );
 }

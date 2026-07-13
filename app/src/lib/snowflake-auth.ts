@@ -3,8 +3,8 @@
 
 import { readFileSync } from 'fs';
 
-const DEFAULT_TOKEN_PATH = process.env.SNOWFLAKE_TOKEN_FILE || '';
-const DEFAULT_ACCOUNT = process.env.NEXT_PUBLIC_SNOWFLAKE_ACCOUNT || '';
+const DEFAULT_TOKEN_PATH = '/Users/pnanisetty/.snowflake/tokens/XFB07251ACCOUNTADMIN_token';
+const DEFAULT_ACCOUNT = 'SFSENORTHAMERICA-DEMO_IND_PNANISETTY';
 
 function getToken(): string {
   // Priority: env var > token file from connection config

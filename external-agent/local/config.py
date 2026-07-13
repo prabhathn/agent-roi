@@ -3,25 +3,21 @@
 
 import os
 
-# Snowflake connection parameters (override via environment variables)
-SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "")
-SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "admin")
-SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "AGENT_ROI_DEMO")
-SNOWFLAKE_SCHEMA = os.environ.get("SNOWFLAKE_SCHEMA", "APP")
-SNOWFLAKE_WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE", "AGENT_ROI_WH")
-SNOWFLAKE_ROLE = os.environ.get("SNOWFLAKE_ROLE", "ACCOUNTADMIN")
+SNOWFLAKE_ACCOUNT = "SFSENORTHAMERICA-DEMO_IND_PNANISETTY"
+SNOWFLAKE_USER = "admin"
+SNOWFLAKE_DATABASE = "AGENT_ROI_DEMO"
+SNOWFLAKE_SCHEMA = "APP"
+SNOWFLAKE_WAREHOUSE = "AGENT_ROI_WH"
+SNOWFLAKE_ROLE = "ACCOUNTADMIN"
 
-# Token file path (from Snowflake CLI or set manually)
-TOKEN_FILE = os.path.expanduser(
-    os.environ.get("SNOWFLAKE_TOKEN_FILE", "~/.snowflake/tokens/token")
-)
+TOKEN_FILE = os.path.expanduser("~/.snowflake/tokens/XFB07251ACCOUNTADMIN_token")
 
 APP_NAME = "LOCAL_QA_AGENT"
 APP_VERSION = "V1"
 
 # Local LLM config
-LLAMA_SERVER_URL = os.environ.get("LLAMA_SERVER_URL", "http://localhost:8080/v1")
-LLAMA_MODEL = os.environ.get("LLAMA_MODEL", "qwen2.5-0.5b-instruct-q4_k_m.gguf")
+LLAMA_SERVER_URL = "http://localhost:8080/v1"
+LLAMA_MODEL = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
 
 
 def get_token() -> str:
