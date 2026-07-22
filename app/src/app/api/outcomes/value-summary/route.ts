@@ -35,12 +35,13 @@ export async function GET(request: NextRequest) {
     ORDER BY day_bucket DESC
   `;
 
-  // Total traces (classified + pending)
+  // Total traces (classified + pending) and credit usage
   const totalSQL = `
     SELECT
       (SELECT COUNT(*) FROM AGENT_ROI_DEMO.APP.AGENT_OUTCOMES WHERE classified_at >= DATEADD('day', -${parseInt(days)}, CURRENT_TIMESTAMP()) ${filterClause.replace('o.', '')}) AS classified_count,
       (SELECT COUNT(*) FROM AGENT_ROI_DEMO.APP.V_TRACE_SUMMARIES WHERE user_query IS NOT NULL ${filterClauseV}) AS total_traces,
-      (SELECT COALESCE(SUM(computed_value), 0) FROM AGENT_ROI_DEMO.APP.AGENT_OUTCOMES WHERE classified_at >= DATEADD('day', -${parseInt(days)}, CURRENT_TIMESTAMP()) ${filterClause.replace('o.', '')}) AS total_value
+      (SELECT COALESCE(SUM(computed_value), 0) FROM AGENT_ROI_DEMO.APP.AGENT_OUTCOMES WHERE classified_at >= DATEADD('day', -${parseInt(days)}, CURRENT_TIMESTAMP()) ${filterClause.replace('o.', '')}) AS total_value,
+      (SELECT COALESCE(SUM(CREDITS), 0) FROM SNOWFLAKE.ACCOUNT_USAGE.CORTEX_AI_FUNCTIONS_USAGE_HISTORY WHERE START_TIME >= DATEADD('day', -${parseInt(days)}, CURRENT_TIMESTAMP())) AS total_credits
   `;
 
   const [dailyResult, totalResult] = await Promise.all([runSQL(dailySQL), runSQL(totalSQL)]);
@@ -51,12 +52,13 @@ export async function GET(request: NextRequest) {
     total_value: parseFloat(r[2]) || 0,
   }));
 
-  const t = totalResult.data?.[0] || ['0', '0', '0'];
+  const t = totalResult.data?.[0] || ['0', '0', '0', '0'];
 
   return Response.json({
     daily,
     classified_count: parseInt(t[0]),
     total_traces: parseInt(t[1]),
     total_value: parseFloat(t[2]) || 0,
+    total_credits: parseFloat(t[3]) || 0,
   });
 }

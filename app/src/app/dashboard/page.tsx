@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getROIColor, formatPercent, formatCredits } from '@/lib/roi-utils';
+import { formatPercent } from '@/lib/roi-utils';
 import type { AgentConfig } from '@/types';
 
 interface SummaryRow {
@@ -28,6 +28,7 @@ interface ValueSummary {
   classified_count: number;
   total_traces: number;
   total_value: number;
+  total_credits: number;
 }
 
 function MetricCard({ label, value, subvalue, color }: { label: string; value: string; subvalue?: string; color?: string }) {
@@ -80,8 +81,6 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     if (!selectedAgentSlug || !selectedAgent) return;
     try {
-      // V_ROI_SUMMARY is currently hardcoded for ROI_DEMO_AGENT
-      // For other agents, we query the observability events directly
       const isDefault = selectedAgent.sf_agent_name === 'ROI_DEMO_AGENT';
       const agentDb = selectedAgent.sf_database || selectedAgent.obs_database || 'AGENT_ROI_DEMO';
       const agentSchema = selectedAgent.sf_schema || selectedAgent.obs_schema || 'APP';
@@ -178,10 +177,16 @@ export default function DashboardPage() {
   );
 
   const positiveRate = totals.thumbsUp + totals.thumbsDown > 0 ? totals.thumbsUp / (totals.thumbsUp + totals.thumbsDown) : null;
-  const errorRate = totals.spans > 0 ? (totals.errors + totals.replans) / totals.spans : null;
-  const creditsPerRequest = totals.requests > 0 && totals.credits > 0 ? totals.credits / totals.requests : null;
-  const roiScore = positiveRate !== null && errorRate !== null && creditsPerRequest !== null && creditsPerRequest > 0
-    ? (positiveRate * (1 - errorRate)) / creditsPerRequest : null;
+  // Error rate uses only actual errors, not replans
+  const errorRate = totals.spans > 0 ? totals.errors / totals.spans : null;
+  const totalCredits = valueSummary?.total_credits ?? (totals.credits > 0 ? totals.credits : null);
+  const creditsPerRequest = totals.requests > 0 && totalCredits ? totalCredits / totals.requests : null;
+
+  // Dollar-based ROI: value delivered / credit cost (assuming ~$3/credit for enterprise)
+  const DOLLARS_PER_CREDIT = 3.0;
+  const creditCostDollars = totalCredits ? totalCredits * DOLLARS_PER_CREDIT : null;
+  const dollarROI = valueSummary && valueSummary.total_value > 0 && creditCostDollars && creditCostDollars > 0
+    ? valueSummary.total_value / creditCostDollars : null;
 
   if (loading) {
     return (
@@ -215,17 +220,52 @@ export default function DashboardPage() {
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-sm text-red-700">{error}</div>
       )}
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricCard label="Value Delivered" value={valueSummary ? `$${valueSummary.total_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'} subvalue={valueSummary ? `${valueSummary.classified_count} classified of ${valueSummary.total_traces} traces` : undefined} color="text-green-600" />
-        <MetricCard label="Conversations" value={totals.requests.toString()} subvalue={`${data.length} days of data`} />
-        <MetricCard label="$ / Conversation" value={valueSummary && valueSummary.classified_count > 0 ? `$${(valueSummary.total_value / valueSummary.classified_count).toFixed(2)}` : '—'} subvalue={valueSummary && totals.credits > 0 ? `${(valueSummary.total_value / totals.credits).toFixed(0)}x credit cost` : undefined} />
-      </div>
+      {/* Metric Cards - Row 1: Value metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard label="Credits / Request" value={formatCredits(creditsPerRequest)} subvalue={`${formatCredits(totals.credits)} total`} />
-        <MetricCard label="Positive Feedback" value={formatPercent(positiveRate)} subvalue={`${totals.thumbsUp} up / ${totals.thumbsDown} down`} color={positiveRate !== null && positiveRate > 0.7 ? 'text-green-600' : undefined} />
-        <MetricCard label="Error Rate" value={formatPercent(errorRate)} subvalue={`${totals.errors} errors + ${totals.replans} replans`} color={errorRate !== null && errorRate < 0.1 ? 'text-green-600' : errorRate !== null && errorRate > 0.3 ? 'text-red-600' : undefined} />
-        <MetricCard label="ROI Score" value={roiScore !== null ? roiScore.toFixed(2) : '—'} subvalue={`${totals.tasksCompleted} tasks completed`} color={getROIColor(roiScore)} />
+        <MetricCard
+          label="Value Delivered"
+          value={valueSummary ? `$${valueSummary.total_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'}
+          subvalue={valueSummary ? `${valueSummary.classified_count} of ${valueSummary.total_traces} classified` : undefined}
+          color="text-green-600"
+        />
+        <MetricCard
+          label="$ / Conversation"
+          value={valueSummary && valueSummary.classified_count > 0 ? `$${(valueSummary.total_value / valueSummary.classified_count).toFixed(2)}` : '—'}
+          subvalue={`${totals.requests} conversations total`}
+        />
+        <MetricCard
+          label="Total Credits"
+          value={totalCredits ? totalCredits.toFixed(4) : '—'}
+          subvalue={creditsPerRequest ? `${creditsPerRequest.toFixed(4)} per request` : 'No billing data yet'}
+        />
+        <MetricCard
+          label="ROI"
+          value={dollarROI ? `${dollarROI.toFixed(0)}x` : '—'}
+          subvalue={creditCostDollars ? `$${valueSummary!.total_value.toFixed(0)} value / $${creditCostDollars.toFixed(2)} cost` : 'Need credit data for ROI'}
+          color={dollarROI ? (dollarROI > 10 ? 'text-green-600' : dollarROI > 1 ? 'text-amber-500' : 'text-red-500') : undefined}
+        />
+      </div>
+
+      {/* Metric Cards - Row 2: Operational health */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard label="Conversations" value={totals.requests.toString()} subvalue={`${data.length} days of data`} />
+        <MetricCard
+          label="Positive Feedback"
+          value={formatPercent(positiveRate)}
+          subvalue={`${totals.thumbsUp} up / ${totals.thumbsDown} down`}
+          color={positiveRate !== null && positiveRate > 0.7 ? 'text-green-600' : undefined}
+        />
+        <MetricCard
+          label="Error Rate"
+          value={formatPercent(errorRate)}
+          subvalue={`${totals.errors} errors across ${totals.spans} spans`}
+          color={errorRate !== null && errorRate === 0 ? 'text-green-600' : errorRate !== null && errorRate > 0.1 ? 'text-red-600' : undefined}
+        />
+        <MetricCard
+          label="Multi-Step Plans"
+          value={totals.replans.toString()}
+          subvalue={totals.requests > 0 ? `${(totals.replans / totals.requests).toFixed(1)} avg steps/request` : '—'}
+        />
       </div>
 
       {/* Coverage warning */}
@@ -249,41 +289,37 @@ export default function DashboardPage() {
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Value</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Latency</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Credits</th>
-                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">+</th>
-                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">-</th>
-                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Errors</th>
+                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">👍</th>
+                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">👎</th>
+                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Steps</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Tasks</th>
-                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">ROI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-[var(--text-muted)]">
+                  <td colSpan={9} className="px-4 py-8 text-center text-[var(--text-muted)]">
                     No data yet. Start chatting with the agent to generate telemetry.
                   </td>
                 </tr>
               ) : (
-                data.map((row) => (
-                  <tr key={row.day_bucket} className="hover:bg-[var(--surface-secondary)] transition-colors">
-                    <td className="px-4 py-2.5 text-[var(--foreground)]">{row.day_bucket ? new Date(parseFloat(row.day_bucket) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
-                    <td className="px-4 py-2.5 text-right text-[var(--foreground)]">{row.total_requests}</td>
-                    <td className="px-4 py-2.5 text-right text-green-600 font-medium">{(() => {
-                      const dayStr = row.day_bucket ? new Date(parseFloat(row.day_bucket) * 1000).toISOString().split('T')[0] : null;
-                      const match = dayStr && valueSummary?.daily.find(d => d.day_bucket && new Date(parseFloat(d.day_bucket) * 1000).toISOString().split('T')[0] === dayStr);
-                      return match ? `$${match.total_value.toFixed(0)}` : '—';
-                    })()}</td>
-                    <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{row.avg_latency_ms ? `${(Number(row.avg_latency_ms) / 1000).toFixed(1)}s` : '—'}</td>
-                    <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{Number(row.total_credits).toFixed(4)}</td>
-                    <td className="px-4 py-2.5 text-right text-green-600">{row.thumbs_up}</td>
-                    <td className="px-4 py-2.5 text-right text-red-600">{row.thumbs_down}</td>
-                    <td className="px-4 py-2.5 text-right text-amber-600">{Number(row.error_spans) + Number(row.replan_spans)}</td>
-                    <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{row.tasks_completed}</td>
-                    <td className={`px-4 py-2.5 text-right font-medium ${getROIColor(row.roi_score ? Number(row.roi_score) : null)}`}>
-                      {row.roi_score ? Number(row.roi_score).toFixed(2) : '—'}
-                    </td>
-                  </tr>
-                ))
+                data.map((row) => {
+                  const dayStr = row.day_bucket ? new Date(parseFloat(row.day_bucket) * 1000).toISOString().split('T')[0] : null;
+                  const valueMatch = dayStr && valueSummary?.daily.find(d => d.day_bucket && new Date(parseFloat(d.day_bucket) * 1000).toISOString().split('T')[0] === dayStr);
+                  return (
+                    <tr key={row.day_bucket} className="hover:bg-[var(--surface-secondary)] transition-colors">
+                      <td className="px-4 py-2.5 text-[var(--foreground)]">{row.day_bucket ? new Date(parseFloat(row.day_bucket) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--foreground)]">{row.total_requests}</td>
+                      <td className="px-4 py-2.5 text-right text-green-600 font-medium">{valueMatch ? `$${valueMatch.total_value.toFixed(0)}` : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{row.avg_latency_ms ? `${(Number(row.avg_latency_ms) / 1000).toFixed(1)}s` : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{Number(row.total_credits) > 0 ? Number(row.total_credits).toFixed(4) : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-green-600">{Number(row.thumbs_up) > 0 ? row.thumbs_up : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-red-600">{Number(row.thumbs_down) > 0 ? row.thumbs_down : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{Number(row.replan_spans) > 0 ? row.replan_spans : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{Number(row.tasks_completed) > 0 ? row.tasks_completed : '—'}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
