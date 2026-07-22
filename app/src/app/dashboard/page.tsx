@@ -47,9 +47,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Agent filter
+  // Filters
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [selectedAgentSlug, setSelectedAgentSlug] = useState<string>('');
+  const [days, setDays] = useState<number>(30);
 
   useEffect(() => {
     fetch('/api/agents')
@@ -72,11 +73,11 @@ export default function DashboardPage() {
   const fetchValueSummary = useCallback(async () => {
     if (!selectedAgentSlug) return;
     try {
-      const res = await fetch(`/api/outcomes/value-summary?agent_slug=${selectedAgentSlug}`);
+      const res = await fetch(`/api/outcomes/value-summary?agent_slug=${selectedAgentSlug}&days=${days}`);
       const data = await res.json();
       if (!data.error) setValueSummary(data);
     } catch (_) { /* non-critical */ }
-  }, [selectedAgentSlug]);
+  }, [selectedAgentSlug, days]);
 
   const fetchData = useCallback(async () => {
     if (!selectedAgentSlug || !selectedAgent) return;
@@ -89,7 +90,7 @@ export default function DashboardPage() {
       const isRoot = agentType === 'CORTEX AGENT' ? "RECORD:name::VARCHAR = 'Agent'" : "RECORD:name::VARCHAR LIKE '%invoke%'";
 
       const sql = isDefault
-        ? 'SELECT * FROM AGENT_ROI_DEMO.APP.V_ROI_SUMMARY ORDER BY day_bucket DESC LIMIT 30'
+        ? `SELECT * FROM AGENT_ROI_DEMO.APP.V_ROI_SUMMARY WHERE day_bucket >= DATEADD('day', -${days}, CURRENT_TIMESTAMP()) ORDER BY day_bucket DESC`
         : `WITH spans AS (
             SELECT
               DATE_TRUNC('day', START_TIMESTAMP) AS day_bucket,
@@ -146,7 +147,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAgentSlug, selectedAgent]);
+  }, [selectedAgentSlug, selectedAgent, days]);
 
   useEffect(() => {
     if (selectedAgentSlug) {
@@ -213,7 +214,18 @@ export default function DashboardPage() {
             </select>
           )}
         </div>
-        <span className="text-xs text-[var(--text-muted)]">Auto-refreshes every 30s</span>
+        <div className="flex items-center gap-3">
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="h-7 px-2 text-xs border border-[var(--border)] rounded-lg bg-[var(--surface-secondary)] text-[var(--text-secondary)] focus:outline-none"
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={180}>Last 180 days</option>
+          </select>
+          <span className="text-xs text-[var(--text-muted)]">Auto-refreshes every 30s</span>
+        </div>
       </div>
 
       {error && (
