@@ -262,9 +262,9 @@ export default function DashboardPage() {
           color={errorRate !== null && errorRate === 0 ? 'text-green-600' : errorRate !== null && errorRate > 0.1 ? 'text-red-600' : undefined}
         />
         <MetricCard
-          label="Multi-Step Plans"
-          value={totals.replans.toString()}
-          subvalue={totals.requests > 0 ? `${(totals.replans / totals.requests).toFixed(1)} avg steps/request` : '—'}
+          label="Avg Plan Steps"
+          value={totals.requests > 0 ? `${((totals.replans + totals.requests) / totals.requests).toFixed(1)}` : '—'}
+          subvalue={`${totals.replans} additional iterations across ${totals.requests} requests`}
         />
       </div>
 
