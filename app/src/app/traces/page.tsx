@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { TraceChat } from '@/components/TraceChat';
 import type { AgentConfig } from '@/types';
 
@@ -76,7 +77,12 @@ interface SpanRow {
   end_ts: string | null;
 }
 
-export default function TracesPage() {
+export default function TracesPageWrapper() {
+  return <Suspense><TracesPageInner /></Suspense>;
+}
+
+function TracesPageInner() {
+  const searchParams = useSearchParams();
   const [traces, setTraces] = useState<TraceRow[]>([]);
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
   const [spans, setSpans] = useState<SpanRow[]>([]);
@@ -240,6 +246,24 @@ export default function TracesPage() {
     } catch (err) { console.error('fetchTraces error:', err); }
     finally { setLoading(false); }
   }, [agents]);
+
+  // Auto-select trace from URL params (e.g. linked from Outcomes page)
+  useEffect(() => {
+    if (loading || traces.length === 0) return;
+    const traceId = searchParams.get('trace_id');
+    const agentSlug = searchParams.get('agent');
+    if (traceId && !selectedTrace) {
+      const match = traces.find((t) => t.trace_id === traceId);
+      if (match) {
+        setSelectedTrace(traceId);
+        setSelectedAgentSlug(match.agent_slug);
+      } else if (agentSlug) {
+        // Trace exists but not in top 50 — still select it
+        setSelectedTrace(traceId);
+        setSelectedAgentSlug(agentSlug);
+      }
+    }
+  }, [loading, traces, searchParams, selectedTrace]);
 
   const fetchSpans = useCallback(async (traceId: string, agentSlug?: string) => {
     const slug = agentSlug || selectedTraceAgent?.agent_slug || '';
