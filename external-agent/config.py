@@ -4,15 +4,15 @@
 import os
 
 # Snowflake connection parameters
-SNOWFLAKE_ACCOUNT = "SFSENORTHAMERICA-DEMO_IND_PNANISETTY"
-SNOWFLAKE_USER = "admin"
+SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "your-account-identifier")
+SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "admin")
 SNOWFLAKE_DATABASE = "AGENT_ROI_DEMO"
 SNOWFLAKE_SCHEMA = "APP"
 SNOWFLAKE_WAREHOUSE = "AGENT_ROI_WH"
 SNOWFLAKE_ROLE = "ACCOUNTADMIN"
 
 # Token file path (same as the Next.js app)
-TOKEN_FILE = os.path.expanduser("~/.snowflake/tokens/XFB07251ACCOUNTADMIN_token")
+TOKEN_FILE = os.path.expanduser(os.environ.get("SNOWFLAKE_TOKEN_FILE", "~/.snowflake/tokens/token"))
 
 # App metadata for TruLens
 APP_NAME = "KNOWLEDGE_RAG_AGENT"
