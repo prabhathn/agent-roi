@@ -88,7 +88,7 @@ function TracesPageInner() {
   const [spans, setSpans] = useState<SpanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [spansLoading, setSpansLoading] = useState(false);
-  const [expandedSpan, setExpandedSpan] = useState<string | null>(null);
+  const [expandedSpans, setExpandedSpans] = useState<Set<string>>(new Set());
   const [queryStats, setQueryStats] = useState<Record<string, Record<string, string>>>({});
   const [queryStatsLoading, setQueryStatsLoading] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<Array<{ positive: boolean | string; categories: string | string[]; message: string; timestamp: string }>>([]);
@@ -248,6 +248,7 @@ function TracesPageInner() {
   }, [agents]);
 
   // Auto-select trace from URL params (e.g. linked from Outcomes page)
+  // or default to the first trace
   useEffect(() => {
     if (loading || traces.length === 0) return;
     const traceId = searchParams.get('trace_id');
@@ -258,10 +259,13 @@ function TracesPageInner() {
         setSelectedTrace(traceId);
         setSelectedAgentSlug(match.agent_slug);
       } else if (agentSlug) {
-        // Trace exists but not in top 50 — still select it
         setSelectedTrace(traceId);
         setSelectedAgentSlug(agentSlug);
       }
+    } else if (!selectedTrace && !traceId) {
+      // Default to first trace
+      setSelectedTrace(traces[0].trace_id);
+      setSelectedAgentSlug(traces[0].agent_slug);
     }
   }, [loading, traces, searchParams, selectedTrace]);
 
@@ -394,7 +398,7 @@ function TracesPageInner() {
       const traceRow = traces.find((t) => t.trace_id === selectedTrace);
       const slug = traceRow?.agent_slug || '';
       fetchSpans(selectedTrace, slug); 
-      setExpandedSpan(null); 
+      setExpandedSpans(new Set()); 
       setFeedback([]); 
       fetchFeedback(selectedTrace, slug); 
     } 
@@ -460,15 +464,15 @@ function TracesPageInner() {
     } catch { /* silent */ }
   }, [agentDb, agentSchema, agentName, agentType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When a SQL span is expanded, fetch its query stats async
+  // When spans are expanded, fetch query stats for any SQL spans
   useEffect(() => {
-    if (expandedSpan) {
-      const span = spans.find((s) => s.span_id === expandedSpan);
+    expandedSpans.forEach((spanId) => {
+      const span = spans.find((s) => s.span_id === spanId);
       if (span?.query_id) {
         fetchQueryStats(span.query_id);
       }
-    }
-  }, [expandedSpan, spans, fetchQueryStats]);
+    });
+  }, [expandedSpans, spans, fetchQueryStats]);
 
   const getSpanColor = (span: SpanRow) => {
     if (span.has_error === 'true') return 'bg-red-400';
@@ -606,9 +610,24 @@ function TracesPageInner() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-[var(--foreground)]">
-                  Trace <span className="font-mono text-[var(--text-muted)]">{selectedTrace.slice(0, 16)}...</span>
-                </h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-sm font-medium text-[var(--foreground)]">
+                    Trace <span className="font-mono text-[var(--text-muted)]">{selectedTrace.slice(0, 16)}...</span>
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const expandableIds = spans.filter(s => hasDetails(s)).map(s => s.span_id);
+                      if (expandedSpans.size === expandableIds.length) {
+                        setExpandedSpans(new Set());
+                      } else {
+                        setExpandedSpans(new Set(expandableIds));
+                      }
+                    }}
+                    className="text-[10px] px-2 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  >
+                    {expandedSpans.size > 0 ? 'Collapse All' : 'Expand All'}
+                  </button>
+                </div>
                 <div className="flex gap-3 text-xs text-[var(--text-muted)]">
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-400" /> Planning</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-400" /> Analyst</span>
@@ -643,14 +662,19 @@ function TracesPageInner() {
                     const leftPct = ((spanStart - traceStart) / totalDuration) * 100;
                     const widthPct = Math.max(2, ((spanEnd - spanStart) / totalDuration) * 100);
 
-                    const isExpanded = expandedSpan === span.span_id;
+                    const isExpanded = expandedSpans.has(span.span_id);
                     const clickable = hasDetails(span);
 
                   return (
                     <div key={`${span.span_id}-${idx}`}>
                       <div
                         className={`flex items-center gap-3 py-0.5 ${clickable ? 'cursor-pointer' : ''}`}
-                        onClick={() => clickable && setExpandedSpan(isExpanded ? null : span.span_id)}
+                        onClick={() => clickable && setExpandedSpans(prev => {
+                          const next = new Set(prev);
+                          if (next.has(span.span_id)) next.delete(span.span_id);
+                          else next.add(span.span_id);
+                          return next;
+                        })}
                       >
                         <div className="w-28 flex items-center gap-1.5 justify-end">
                           {clickable && (
