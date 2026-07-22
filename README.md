@@ -225,3 +225,116 @@ agent-roi/
 ## License
 
 MIT
+
+---
+
+## Appendix A: Snowflake AI Telemetry
+
+Agent ROI leverages two telemetry systems to capture full observability across all agent types.
+
+### Native Snowflake Telemetry (Cortex Agents)
+
+Snowflake provides built-in observability through the `GET_AI_OBSERVABILITY_EVENTS` table function. This captures spans and feedback for any Cortex Agent or External Agent registered with Snowflake.
+
+| View / Function | What it captures |
+|----------------|-----------------|
+| `GET_AI_OBSERVABILITY_EVENTS('CORTEX AGENT')` | Spans for native Cortex Agents — planning, tool calls (Analyst, Search), SQL execution, response generation |
+| `GET_AI_OBSERVABILITY_EVENTS('EXTERNAL AGENT')` | Spans for external agents that report telemetry via TruLens to Snowflake |
+| `SNOWFLAKE.ACCOUNT_USAGE.CORTEX_AGENT_USAGE_HISTORY` | Billing: tokens, credits per Cortex Agent conversation |
+| `SNOWFLAKE.ACCOUNT_USAGE.AI_FUNCTIONS_USAGE_HISTORY` | Billing: AI function calls (COMPLETE, CLASSIFY, EXTRACT, etc.) |
+| `SNOWFLAKE.ACCOUNT_USAGE.CORTEX_SEARCH_USAGE_HISTORY` | Billing: Cortex Search query volume |
+| `SNOWFLAKE.ACCOUNT_USAGE.CORTEX_ANALYST_USAGE_HISTORY` | Billing: Cortex Analyst (text-to-SQL) calls |
+
+**Span structure** (from `GET_AI_OBSERVABILITY_EVENTS`):
+- Each span has: `trace_id`, `span_id`, `name`, `start_timestamp`, `end_timestamp`, `record_attributes`
+- Attributes vary by span type: planning spans include model/tokens, tool spans include tool names and arguments, SQL spans include the query and warehouse
+- Feedback events: `positive` (boolean), `categories` (array), `message` (text)
+
+### TruLens Telemetry (External Agents)
+
+For agents built outside Snowflake's native framework, [TruLens](https://www.trulens.org/) provides equivalent observability by instrumenting Python agent code and writing spans to Snowflake.
+
+| Instrumentation | Coverage |
+|----------------|----------|
+| **TruGraph** (LangGraph agents) | Node-level spans — each graph node (think, draft, refine) gets an individual span with `span_type: "graph_node"` |
+| **TruChain** (LangChain agents) | Chain-level spans — each chain step gets a span |
+| **TruCustomApp** (Custom agents) | Method-level spans — any decorated method gets instrumented |
+
+TruLens writes its telemetry to the same Snowflake tables that `GET_AI_OBSERVABILITY_EVENTS('EXTERNAL AGENT')` reads from, providing a unified view.
+
+### Materialization Strategy
+
+Calling `GET_AI_OBSERVABILITY_EVENTS` is a table function that scans raw event data on every call. For production dashboards, Agent ROI pre-materializes all events into `TRACE_EVENTS_MATERIALIZED`:
+
+```sql
+-- Manual refresh via the app's "Refresh" button
+INSERT INTO TRACE_EVENTS_MATERIALIZED
+SELECT * FROM TABLE(GET_AI_OBSERVABILITY_EVENTS('CORTEX AGENT', ...))
+WHERE START_TIMESTAMP > (SELECT MAX(START_TIMESTAMP) FROM TRACE_EVENTS_MATERIALIZED ...)
+```
+
+This reduces page load times from 5-10s to <500ms for the Traces and Outcomes pages.
+
+---
+
+## Appendix B: Outcome Classification
+
+The Outcomes system classifies every agent conversation into business-meaningful categories and assigns dollar values to measure ROI.
+
+### How It Works
+
+1. **Categories are defined per agent** in the Config page. Each has a name, type (success/failure/partial/neutral), and dollar value.
+2. **AI_CLASSIFY runs in batch** — Snowflake's `AI_CLASSIFY` function reads the trace summary (query + response + tools used + errors) and picks the best-matching category.
+3. **Quality scoring** adjusts the dollar value: errors (-25%), high latency (-10%), re-plans (-10%), thumbs down (-30%), thumbs up (+10%).
+4. **Manual override** — humans can re-classify any outcome via the dropdown in the Outcomes table.
+
+### Feedback Collection
+
+Each agent response includes thumbs up/down buttons for direct user feedback. This feedback is stored as an observability event and factors into quality scoring.
+
+![Chat feedback — thumbs up/down buttons appear below each response](docs/screenshots/chat-feedback.png)
+
+### Task Tracking
+
+The "Start Task" button begins a timer that measures how long a user spends on a multi-turn interaction. When they click "Complete," the elapsed time is recorded as a task duration metric.
+
+![Task in progress — timer with Complete button](docs/screenshots/chat-task.png)
+
+### Configuring Outcome Categories
+
+Each agent has its own set of categories defined in the Config page. Categories include a dollar value that represents the business impact of that outcome type.
+
+![Agent config dialog showing outcome categories with dollar values](docs/screenshots/config-categories.png)
+
+### Classification Flow
+
+```
+Trace Summary (query + response + tools + errors)
+        │
+        ▼
+┌──────────────────┐
+│   AI_CLASSIFY    │  ← Snowflake Cortex function
+│  (zero-shot)     │
+└────────┬─────────┘
+         │
+         ▼
+Category Match (e.g. "Chart Generated")
+         │
+         ▼
+Quality Score = 1.0 + adjustments (errors, latency, feedback)
+         │
+         ▼
+Computed Value = Category.dollar_value × Quality Score
+```
+
+### Example Categories
+
+| Agent | Category | Type | $ Value |
+|-------|----------|------|---------|
+| Sales & Policy Agent | Chart Generated | Success | $40 |
+| Sales & Policy Agent | Question Answered | Success | $50 |
+| Sales & Policy Agent | Policy Clarified | Success | $30 |
+| Knowledge RAG Agent | Info Retrieved | Success | $40 |
+| Knowledge RAG Agent | No Information Available | Neutral | $0 |
+| Local Q&A Agent | Answered | Success | $5 |
+
