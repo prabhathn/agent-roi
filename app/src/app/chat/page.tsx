@@ -701,7 +701,7 @@ export default function ChatPage() {
                 <select
                   value={selectedSlug}
                   onChange={(e) => handleAgentChange(e.target.value)}
-                  className="h-6 px-2 text-[11px] font-medium border border-[var(--border)] rounded-md bg-[var(--surface-secondary)] text-[var(--text-secondary)] focus:outline-none hover:text-amber-700 hover:border-amber-300 hover:bg-amber-50 cursor-pointer max-w-[140px] truncate"
+                  className="h-6 px-2 text-[11px] font-medium border border-amber-300 rounded-md bg-amber-50 text-amber-800 focus:outline-none hover:border-amber-400 hover:bg-amber-100 cursor-pointer max-w-[280px]"
                 >
                   {agents.map((a) => (
                     <option key={a.slug} value={a.slug}>{a.name}</option>
