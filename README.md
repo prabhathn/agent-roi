@@ -129,6 +129,29 @@ Register and manage agents. Supports Cortex Agents (native Snowflake), external 
 - Python 3.11+ (for external agents)
 - (Optional) llama-server with a GGUF model for the local agent
 
+### Required Permissions for Observability
+
+To view trace details (tool inputs/outputs, conversation history, user feedback), the role used by the app must be granted:
+
+```sql
+-- Grant the CORTEX_USER database role (required for any observability access)
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE <your_role>;
+
+-- Grant MONITOR on each Cortex Agent you want to observe
+GRANT MONITOR ON CORTEX AGENT <db>.<schema>.<agent_name> TO ROLE <your_role>;
+
+-- Grant full (unredacted) observability content — tool I/O, conversation text, feedback
+GRANT READ UNREDACTED AI OBSERVABILITY EVENTS TABLE ON ACCOUNT TO ROLE <your_role>;
+```
+
+Without `READ UNREDACTED AI OBSERVABILITY EVENTS TABLE`, you can still see metadata (tool names, token counts, latency, model name, error severity) but **not** the actual input/output content of spans.
+
+For External Agents, `USAGE` on the External Agent object is sufficient (no `MONITOR` needed):
+
+```sql
+GRANT USAGE ON EXTERNAL AGENT <db>.<schema>.<external_agent_name> TO ROLE <your_role>;
+```
+
 ## Installation
 
 ### 1. Clone the repository
