@@ -229,7 +229,7 @@ export default function DashboardPage() {
           color="text-green-600"
         />
         <MetricCard
-          label="$ / Conversation"
+          label="Value / Convo"
           value={valueSummary && valueSummary.classified_count > 0 ? `$${(valueSummary.total_value / valueSummary.classified_count).toFixed(2)}` : '—'}
           subvalue={`${totals.requests} conversations total`}
         />
