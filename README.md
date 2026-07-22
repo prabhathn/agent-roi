@@ -8,11 +8,59 @@ A full-stack application for measuring the Return on Investment (ROI) of AI agen
 
 Agent ROI provides a unified interface to:
 
-- **Chat** with multiple AI agents (Cortex Agents, external RAG agents, local LLM agents) from a single UI
+- **Chat** with multiple AI agents from a single UI
 - **Track costs** — credits consumed, latency, error rates per conversation
 - **Trace execution** — view individual spans (planning, tool use, SQL execution, response generation) for every conversation
 - **Classify outcomes** — use Snowflake's `AI_CLASSIFY` function to automatically categorize conversation results
 - **Calculate ROI** — assign dollar values to outcome categories and compute per-agent return on investment
+
+## Works With Any Agent
+
+Agent ROI is **agent-framework agnostic**. It measures ROI for any AI agent that can report telemetry to Snowflake — whether built natively on Snowflake or running externally in any language or framework.
+
+### Native Snowflake Agents
+
+| Agent Type | Description |
+|------------|-------------|
+| **Cortex Agent** | Snowflake's native agent framework with built-in Analyst (text-to-SQL) and Search tools |
+| **Cortex Analyst** | Text-to-SQL agents built on semantic models |
+
+Native agents get automatic observability — no instrumentation code required.
+
+### External Agents (via TruLens)
+
+Any Python-based agent can report telemetry to Snowflake using [TruLens](https://www.trulens.org/). This project includes two reference implementations, but the pattern extends to **any framework**:
+
+| Framework | Reference Implementation | Description |
+|-----------|-------------------------|-------------|
+| **LangGraph** | `external-agent/local/` | Graph-based agent orchestration with node-level tracing |
+| **Cortex COMPLETE (direct)** | `external-agent/` | RAG agent calling Snowflake Cortex REST API directly |
+
+**Other supported frameworks** (via TruLens instrumentation):
+
+- **LangChain** — `TruChain` instruments every chain step as a span
+- **LlamaIndex** — `TruLlama` captures query engine, retrieval, and synthesis spans
+- **CrewAI** — instrument multi-agent crew tasks and delegation
+- **AutoGen** — capture conversation turns across agent groups
+- **Custom Python agents** — `TruCustomApp` decorates any method for span-level tracing
+- **Any OpenAI-compatible endpoint** — local models (llama.cpp, Ollama, vLLM), cloud APIs (OpenAI, Anthropic, Cohere) routed through instrumented code
+
+### How External Agent Telemetry Works
+
+```
+Your Agent (any framework)
+        │
+        ▼
+TruLens Instrumentation (Python decorator / wrapper)
+        │
+        ▼
+Spans written to Snowflake  ──►  GET_AI_OBSERVABILITY_EVENTS('EXTERNAL AGENT')
+        │
+        ▼
+Agent ROI reads the same unified telemetry format
+```
+
+As long as your agent writes spans via TruLens to Snowflake, Agent ROI will automatically pick up traces, calculate costs, classify outcomes, and compute ROI — regardless of the underlying framework or model provider.
 
 ## Architecture
 
@@ -66,13 +114,12 @@ Register and manage agents. Supports Cortex Agents (native Snowflake), external 
 
 ![Config](docs/screenshots/config.png)
 
-## Supported Agent Types
+## Telemetry Sources
 
-| Type | Description | Telemetry Source |
-|------|-------------|-----------------|
-| **Cortex Agent** | Native Snowflake agent (Cortex Analyst + Search) | `GET_AI_OBSERVABILITY_EVENTS('CORTEX AGENT')` |
-| **External (Cortex REST API)** | Python agent using Cortex COMPLETE API | `GET_AI_OBSERVABILITY_EVENTS('EXTERNAL AGENT')` via TruLens |
-| **External (Local LLM)** | Fully local agent (LangGraph + llama-server) | `GET_AI_OBSERVABILITY_EVENTS('EXTERNAL AGENT')` via TruLens |
+| Agent Type | Telemetry Source |
+|------------|-----------------|
+| Native Cortex Agent | `GET_AI_OBSERVABILITY_EVENTS('CORTEX AGENT')` — automatic, no instrumentation needed |
+| Any External Agent | `GET_AI_OBSERVABILITY_EVENTS('EXTERNAL AGENT')` — via TruLens instrumentation |
 
 ## Prerequisites
 
