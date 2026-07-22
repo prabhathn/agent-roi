@@ -23,6 +23,13 @@ interface SummaryRow {
   roi_score: string | null;
 }
 
+interface ValueSummary {
+  daily: { day_bucket: string; classified_count: number; total_value: number }[];
+  classified_count: number;
+  total_traces: number;
+  total_value: number;
+}
+
 function MetricCard({ label, value, subvalue, color }: { label: string; value: string; subvalue?: string; color?: string }) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
@@ -35,6 +42,7 @@ function MetricCard({ label, value, subvalue, color }: { label: string; value: s
 
 export default function DashboardPage() {
   const [data, setData] = useState<SummaryRow[]>([]);
+  const [valueSummary, setValueSummary] = useState<ValueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +67,15 @@ export default function DashboardPage() {
   }, []);
 
   const selectedAgent = agents.find((a) => a.slug === selectedAgentSlug);
+
+  const fetchValueSummary = useCallback(async () => {
+    if (!selectedAgentSlug) return;
+    try {
+      const res = await fetch(`/api/outcomes/value-summary?agent_slug=${selectedAgentSlug}`);
+      const data = await res.json();
+      if (!data.error) setValueSummary(data);
+    } catch (_) { /* non-critical */ }
+  }, [selectedAgentSlug]);
 
   const fetchData = useCallback(async () => {
     if (!selectedAgentSlug || !selectedAgent) return;
@@ -136,13 +153,14 @@ export default function DashboardPage() {
     if (selectedAgentSlug) {
       setLoading(true);
       fetchData();
+      fetchValueSummary();
     }
-  }, [fetchData, selectedAgentSlug]);
+  }, [fetchData, fetchValueSummary, selectedAgentSlug]);
 
   useEffect(() => {
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(() => { fetchData(); fetchValueSummary(); }, 30000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, fetchValueSummary]);
 
   const totals = data.reduce(
     (acc, row) => ({
@@ -198,13 +216,24 @@ export default function DashboardPage() {
       )}
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricCard label="Value Delivered" value={valueSummary ? `$${valueSummary.total_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'} subvalue={valueSummary ? `${valueSummary.classified_count} classified of ${valueSummary.total_traces} traces` : undefined} color="text-green-600" />
         <MetricCard label="Conversations" value={totals.requests.toString()} subvalue={`${data.length} days of data`} />
+        <MetricCard label="$ / Conversation" value={valueSummary && valueSummary.classified_count > 0 ? `$${(valueSummary.total_value / valueSummary.classified_count).toFixed(2)}` : '—'} subvalue={valueSummary && totals.credits > 0 ? `${(valueSummary.total_value / totals.credits).toFixed(0)}x credit cost` : undefined} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard label="Credits / Request" value={formatCredits(creditsPerRequest)} subvalue={`${formatCredits(totals.credits)} total`} />
         <MetricCard label="Positive Feedback" value={formatPercent(positiveRate)} subvalue={`${totals.thumbsUp} up / ${totals.thumbsDown} down`} color={positiveRate !== null && positiveRate > 0.7 ? 'text-green-600' : undefined} />
         <MetricCard label="Error Rate" value={formatPercent(errorRate)} subvalue={`${totals.errors} errors + ${totals.replans} replans`} color={errorRate !== null && errorRate < 0.1 ? 'text-green-600' : errorRate !== null && errorRate > 0.3 ? 'text-red-600' : undefined} />
         <MetricCard label="ROI Score" value={roiScore !== null ? roiScore.toFixed(2) : '—'} subvalue={`${totals.tasksCompleted} tasks completed`} color={getROIColor(roiScore)} />
       </div>
+
+      {/* Coverage warning */}
+      {valueSummary && valueSummary.total_traces > 0 && valueSummary.classified_count < valueSummary.total_traces && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-sm text-amber-700">
+          {Math.round((valueSummary.classified_count / valueSummary.total_traces) * 100)}% of traces classified — run <span className="font-medium">Classify Unclassified</span> on the Outcomes page for complete value metrics.
+        </div>
+      )}
 
       {/* Daily breakdown table */}
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
@@ -217,6 +246,7 @@ export default function DashboardPage() {
               <tr>
                 <th className="px-4 py-2.5 text-left text-xs text-[var(--text-muted)] font-medium">Date</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Requests</th>
+                <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Value</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Latency</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">Credits</th>
                 <th className="px-4 py-2.5 text-right text-xs text-[var(--text-muted)] font-medium">+</th>
@@ -229,7 +259,7 @@ export default function DashboardPage() {
             <tbody className="divide-y divide-[var(--border)]">
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-[var(--text-muted)]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-[var(--text-muted)]">
                     No data yet. Start chatting with the agent to generate telemetry.
                   </td>
                 </tr>
@@ -238,6 +268,11 @@ export default function DashboardPage() {
                   <tr key={row.day_bucket} className="hover:bg-[var(--surface-secondary)] transition-colors">
                     <td className="px-4 py-2.5 text-[var(--foreground)]">{row.day_bucket ? new Date(parseFloat(row.day_bucket) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                     <td className="px-4 py-2.5 text-right text-[var(--foreground)]">{row.total_requests}</td>
+                    <td className="px-4 py-2.5 text-right text-green-600 font-medium">{(() => {
+                      const dayStr = row.day_bucket ? new Date(parseFloat(row.day_bucket) * 1000).toISOString().split('T')[0] : null;
+                      const match = dayStr && valueSummary?.daily.find(d => d.day_bucket && new Date(parseFloat(d.day_bucket) * 1000).toISOString().split('T')[0] === dayStr);
+                      return match ? `$${match.total_value.toFixed(0)}` : '—';
+                    })()}</td>
                     <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{row.avg_latency_ms ? `${(Number(row.avg_latency_ms) / 1000).toFixed(1)}s` : '—'}</td>
                     <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{Number(row.total_credits).toFixed(4)}</td>
                     <td className="px-4 py-2.5 text-right text-green-600">{row.thumbs_up}</td>
